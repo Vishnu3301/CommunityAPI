@@ -17,5 +17,8 @@ async function connectTodb(){
 }
 
 module.exports={
-    connectTodb,client
+    connectTodb,
+    getClient: ()=>{
+        return client;
+    }
 }
