@@ -34,8 +34,9 @@ const signup = async (req,res)=>{
             
         }
         //store user profile in mongodb
-        await client.db('Communityapi').collection('userInfo').insertOne(userDetails);
-        const token=jwt.sign({userid:userId,email:email},key);
+        const mongodbUserInfo=await client.db('Communityapi').collection('userInfo').insertOne(userDetails);
+        const mongodbuserid=mongodbUserInfo._id;
+        const token=jwt.sign({firebaseuserid:userId,mongodbuserid:mongodbuserid,email:email},key);
         res.status(200).json({message:"SignedUp successfully",token:token});
     }
     catch(error){
@@ -53,7 +54,8 @@ const login = async (req,res)=>{
     try{
         const userInfo=await signInWithEmailAndPassword(auth,email,password);
         const userId=userInfo.user.uid
-        const token= jwt.sign({userid:userId,email:email},key)
+        const mongodbuserinfo=await client.db('Communityapi').collection('userInfo').find({email:email}).toArray();
+        const token= jwt.sign({fireabaseuserid:userId,mongodbuserid:mongodbuserinfo[0]._id,email:email},key)
         res.status(200).send({message:"signed in succesfully",token:token});
     }
     catch(error){
