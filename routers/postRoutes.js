@@ -1,7 +1,7 @@
 const express=require('express');
 const postRouter=express.Router();
-const isLoggedin=require('../middleware/auth');
-const {getMyposts,createPost,getTimeline,updatePost,deletePost}=require('../controllers/postControllers')
+const isLoggedin=require('../middleware/tokenChecker');
+const {getMyposts,createPost,getTimeline,updatePost,deletePost,makeInvisible, makeVisible}=require('../controllers/postControllers')
 const {isCreator}=require('../middleware/authorisedUser')
 
 //for now all posts are public
@@ -9,7 +9,9 @@ const {isCreator}=require('../middleware/authorisedUser')
 postRouter.get('/',isLoggedin,getMyposts); //get all the posts of the current logged in user
 postRouter.get('/timeline',isLoggedin,getTimeline); //get the timeline posts of the current logged in user
 postRouter.post('/',isLoggedin,createPost);  //create a post corresponding to the current logged in user
-postRouter.put('/:id',isLoggedin,/*isCreator,*/updatePost); //update the details of a specific post made by the current logged in user
-postRouter.delete('/:id',isLoggedin,/*isCreator,*/deletePost); //delete a specific post created by the current logged in user
+postRouter.put('/:id',isLoggedin,isCreator,updatePost); //update the details of a specific post made by the current logged in user
+postRouter.delete('/:id',isLoggedin,isCreator,deletePost); //delete a specific post created by the current logged in user
+postRouter.put('/:id/visible',isLoggedin,isCreator,makeVisible); //make the post visible
+postRouter.delete('/:id/visible',isLoggedin,isCreator,makeInvisible);//make the post invisible
 
 module.exports=postRouter

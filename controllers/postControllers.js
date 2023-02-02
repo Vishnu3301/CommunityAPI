@@ -1,10 +1,11 @@
 const {getClient}=require('../db');
 const client=getClient();
 const {ObjectId}=require('mongodb');
+const { post } = require('../routers/postRoutes');
+const { linkWithRedirect } = require('firebase/auth');
 
 const getMyposts= async (req,res)=>{
     const mongodbuserid=req.mongodbuserid;
-    console.log(mongodbuserid);
     try{
         //use aggregation pipeline
         const posts= await client.db('Communityapi').collection('posts').aggregate([{
@@ -36,13 +37,19 @@ const createPost = async (req,res)=>{
             visible=false;
         }
         //create new post
-        await client.db('Communityapi').collection('posts').insertOne({
-            title,
-            description,
-            creator:new ObjectId(mongodbuserid),
-            visible
-        })
-        res.status(200).json({"message":"post created succesfully"})
+        //add conditions to check whether title and description is given or not
+        if(title && description){
+            await client.db('Communityapi').collection('posts').insertOne({
+                title,
+                description,
+                creator:new ObjectId(mongodbuserid),
+                visible
+            })
+            res.status(200).json({"message":"post created succesfully"})
+        }
+        else{
+            res.status(400).json({"message":"insufficient details"})
+        }
     }
     catch(error){
         console.log(error);
@@ -51,13 +58,67 @@ const createPost = async (req,res)=>{
 }
 
 const updatePost = async (req,res)=>{
-    //to be implemented
+    const postId=new ObjectId(req.params.id);
+    const updatedFields=req.body;
+    try{
+        const updatedPost= await client.db('Communityapi').collection('posts').findOneAndUpdate({_id:postId},{
+            $set: updatedFields
+        },{returnDocument:'after'});
+       //to be implemented - return the updated post
+        res.status(200).json({message:"Post updated successfully"});
+    }
+    catch(error){
+        console.log(error);
+        res.status(501).json({message:"Couldnot update the post - Server side error"})
+    }
 }
 
 const deletePost = async (req,res)=>{
-    //to be implemented
+    const postId=new ObjectId(req.params.id);
+    try{
+        await client.db('Communityapi').collection('posts').deleteOne({_id:postId});
+        res.status(200).json({message:"Post deleted Succesfully"})
+    }
+    catch(error){
+        console.log(error);
+        res.status(501).json({message:"Can't delete the post - Server side error"});
+    }
+}
+
+const makeVisible = async (req,res)=>{
+    const postId=new ObjectId(req.params.id);
+    try{
+        updatedFields={
+            visible:true
+        }
+        await client.db('Communityapi').collection('posts').findOneAndUpdate({_id:postId},{
+            $set: updatedFields
+        },{returnDocument:'after'});
+        res.status(200).json({message:"Unarchived the post"});
+    }
+    catch(error){
+        console.log("error");
+        res.status(501).json({message:"Can't update visibility"});
+    }
+}
+
+const makeInvisible = async (req,res)=>{
+    const postId=new ObjectId(req.params.id);
+    try{
+        updatedFields={
+            visible:false
+        }
+        await client.db('Communityapi').collection('posts').findOneAndUpdate({_id:postId},{
+            $set: updatedFields
+        },{returnDocument:'after'});
+        res.status(200).json({message:"Archived the post"});
+    }
+    catch(error){
+        console.log("error");
+        res.status(501).json({message:"Can't update visibility"});
+    }
 }
 
 module.exports={
-    getMyposts,createPost,updatePost,deletePost,getTimeline
+    getMyposts,createPost,updatePost,deletePost,getTimeline,makeInvisible,makeVisible
 }

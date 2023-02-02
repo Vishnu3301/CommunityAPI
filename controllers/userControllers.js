@@ -1,69 +1,136 @@
-const jwt=require('jsonwebtoken'); //jwt for api security
-const key=process.env.SECRETKEY //secret key to sign the payload for token
-//conneting to firebase for user authentication
-const {initializeApp}=require('firebase/app');
-const {getAuth,createUserWithEmailAndPassword, signInWithEmailAndPassword}=require('firebase/auth')
 const {getClient}=require('../db');
 const client=getClient();
-const firebaseConfig={
-    apiKey: process.env.APIKEY,
-    authDomain: process.env.AUTHDOMAIN,
-    projectId: process.env.PROJECTID,
-    storageBucket: process.env.STORAGEBUCKET,
-    messagingSenderId: process.env.MESSAGINGSENDERID,
-    appId: process.env.APPID,
-    measurementId: process.env.MEASUREMENTID
-};
-const appFirebase = initializeApp(firebaseConfig);
-const auth = getAuth();
-
-//signup controller
-const signup = async (req,res)=>{
-    const {name,gender,profession,mobile,location,email,password}=req.body;
+const {ObjectId}=require('mongodb')
+const getUser = async (req,res)=>{
     try{
-        const userInfo= await createUserWithEmailAndPassword(auth,email,password)
-        const userId=userInfo.user.uid;
-        const userDetails={
-            name:name,
-            email:email,
-            gender:gender,
-            profession:profession,
-            mobile:mobile,
-            location:location,
-            userid:userId
-            
+        const username=req.params.username;
+        const userInfo= await client.db('Communityapi').collection('userInfo').findOne({username:username})
+        if(userInfo){
+            const {_id,userid,email,mobile,...actualInfo}=userInfo;
+            res.status(200).json(actualInfo);
         }
-        //store user profile in mongodb
-        const mongodbUserInfo=await client.db('Communityapi').collection('userInfo').insertOne(userDetails);
-        const mongodbuserid=mongodbUserInfo._id;
-        const token=jwt.sign({firebaseuserid:userId,mongodbuserid:mongodbuserid,email:email},key);
-        res.status(200).json({message:"SignedUp successfully",token:token});
+        else{
+            res.status(200).json({message:"No such user exists"})
+        }
     }
     catch(error){
         console.log(error);
-        if(error.code){
-            res.status(401).json({message:`${error.code.slice(5)}`})
-        }
-        res.status(401).json({message:"Error occured while storing user info"});
+        res.status(501).json({message:"Could not find the user - Server error"});
     }
 }
 
-//login controller
-const login = async (req,res)=>{
-    const {email,password}=req.body;
+const followUser = async (req,res)=>{
     try{
-        const userInfo=await signInWithEmailAndPassword(auth,email,password);
-        const userId=userInfo.user.uid
-        const mongodbuserinfo=await client.db('Communityapi').collection('userInfo').find({email:email}).toArray();
-        const token= jwt.sign({fireabaseuserid:userId,mongodbuserid:mongodbuserinfo[0]._id,email:email},key)
-        res.status(200).send({message:"signed in succesfully",token:token});
+        const username=req.params.username;
+        const userInfo= await client.db('Communityapi').collection('userInfo').findOne({username:username});
+        if(userInfo){
+            const guestUserId= userInfo._id;
+            const followerid= req.mongodbuserid;
+            const alreadyFollowing = await client.db('Communityapi').collection('follows').findOne({followerid:followerid,followedid:guestUserId});
+            if(alreadyFollowing){
+                res.status(409).json({message:"You are already following this user"});
+            }
+            else{
+                await client.db('Communityapi').collection('follows').insertOne({
+                    followerid:followerid, //this user requested to follow the below user
+                    followedid:guestUserId //this user gains a follower
+                })
+                res.status(200).json({message:"You are now following the user"})
+            }
+        }
+        else{
+            res.status(200).json({message:"No such user exists"})
+        }
     }
     catch(error){
         console.log(error);
-        res.status(401).json({message:`${error.code.slice(5)}`})
+        res.status(501).json({message:"Could not follow the user - Server error"});
     }
 }
 
-module.exports={
-    signup,login
+const unfollowUser = async (req,res)=>{
+    try{
+        const username=req.params.username;
+        const userInfo= await client.db('Communityapi').collection('userInfo').findOne({username:username});
+        if(userInfo){
+            const guestUserId= userInfo._id;
+            const followerid= req.mongodbuserid;
+            const notFollowing = await client.db('Communityapi').collection('follows').findOne({followerid:followerid,followedid:guestUserId});
+            if(!notFollowing){
+                res.status(409).json({message:"You are already not following this user"});
+            }
+            else{
+                await client.db('Communityapi').collection('follows').deleteOne({
+                    followerid:followerid,
+                    followedid:guestUserId 
+                })
+                res.status(200).json({message:"You have unfollowed this user"})
+            }
+        }
+        else{
+            res.status(200).json({message:"No such user exists"})
+        }
+    }
+    catch(error){
+        console.log(error);
+        res.status(501).json({message:"Could not unfollow the user - Server error"});
+    }
 }
+
+const updateUser= async (req,res)=>{
+    //pass
+}
+
+const getfollowerCount= async (req,res)=>{
+    try{
+        const username=req.params.username;
+        const userInfo= await client.db('Communityapi').collection('userInfo').findOne({username:username});
+        if(userInfo){
+            const guestUserId= userInfo._id;
+            const followerCount= await client.db('Communityapi').collection('follows').countDocuments({followedid:guestUserId});
+            res.status(200).json({"followers": `${followerCount}`});
+        }
+        else{
+            res.status(200).json({message:"No such user exists"})
+        }
+    }
+    catch(error){
+        console.log(error);
+        res.status(501).json({message:"Could not find the number of followers - Server error"});
+    }
+}
+
+const getStats= async (req,res)=>{
+    //for now we are doing posts count
+    try{
+        const username=req.params.username;
+        const userInfo= await client.db('Communityapi').collection('userInfo').findOne({username:username});
+        if(userInfo){
+            const mongodbuserid= userInfo._id
+            const postsCount= await client.db('Communityapi').collection('posts').countDocuments({creator:mongodbuserid});
+            res.status(200).json({"postscount": `${postsCount}`});
+        }
+        else{
+            res.status(200).json({message:"No such user exists"})
+        }
+    }
+    catch(error){
+        console.log(error);
+        res.status(501).json({message:"Could not find the number of posts - Server error"});
+    }
+}
+
+const myDetails = async (req,res)=>{
+    const mongodbuserid = new ObjectId(req.mongodbuserid);
+    try{
+        const myInfo=await client.db('Communityapi').collection('userInfo').findOne({_id:mongodbuserid});
+        const {_id,...safeInfo}=myInfo;
+        res.status(200).json(safeInfo);
+    }
+    catch(error){
+        console.log(error);
+        res.status(501).json({message:"ould not find your details - Server error"});
+    }
+}
+
+module.exports ={ getUser,followUser,unfollowUser,updateUser,getfollowerCount,getStats,myDetails};
