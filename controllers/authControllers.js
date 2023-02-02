@@ -42,7 +42,7 @@ const signup = async (req,res)=>{
             //store user profile in mongodb
             const mongodbUserInfo=await client.db('Communityapi').collection('userInfo').insertOne(userDetails);
             console.log(mongodbUserInfo);
-            const mongodbuserid=mongodbUserInfo._id;
+            const mongodbuserid=mongodbUserInfo.insertedId;
             const token=jwt.sign({firebaseuserid:userId,mongodbuserid:mongodbuserid,email:email},key);
             res.status(200).json({message:"SignedUp successfully",token:token});
         }
