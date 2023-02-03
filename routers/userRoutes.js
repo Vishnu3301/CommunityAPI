@@ -9,6 +9,7 @@ userRouter.get('/:username/followercount',isLoggedin,getfollowerCount); //get th
 userRouter.put('/self',isLoggedin,updateUser); //update the details of current user
 userRouter.get('/:username/stats',isLoggedin,getStats); //fetch a user's posts,comments, likes count
 userRouter.put('/:username/follow',isLoggedin,followUser); //follow a user
-userRouter.delete('/:username/unfollow',isLoggedin,unfollowUser); //unfollow a user
+userRouter.delete('/:username/follow',isLoggedin,unfollowUser); //unfollow a user
+
 
 module.exports = userRouter

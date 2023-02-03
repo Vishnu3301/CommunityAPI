@@ -78,7 +78,18 @@ const unfollowUser = async (req,res)=>{
 }
 
 const updateUser= async (req,res)=>{
-    //pass
+    const mongodbuserid=new ObjectId(req.mongodbuserid);
+    try{
+        const updatedFields=req.body;
+        await client.db('Communityapi').collection('userInfo').updateOne({_id:mongodbuserid},{
+            $set: updatedFields
+        })
+        res.status(200).json({message:"Updated you Info"})
+    }
+    catch(error){
+        console.log(error);
+        res.status(501).json({"message":"Can't update your details - Server error"})
+    }
 }
 
 const getfollowerCount= async (req,res)=>{
@@ -108,7 +119,8 @@ const getStats= async (req,res)=>{
         if(userInfo){
             const mongodbuserid= userInfo._id
             const postsCount= await client.db('Communityapi').collection('posts').countDocuments({creator:mongodbuserid});
-            res.status(200).json({"postscount": `${postsCount}`});
+            const likesCount= await client.db('Communityapi').collection('likes').countDocuments({creatorid:mongodbuserid}); //the total likes user got over all his posts combined
+            res.status(200).json({"postscount": `${postsCount}`,"likescount":`${likesCount}`});
         }
         else{
             res.status(200).json({message:"No such user exists"})

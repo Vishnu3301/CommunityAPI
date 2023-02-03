@@ -119,6 +119,76 @@ const makeInvisible = async (req,res)=>{
     }
 }
 
+const likePost = async (req,res)=>{
+    const postId=new ObjectId(req.params.id);
+    const mongodbuserid =new ObjectId(req.mongodbuserid);
+    try{
+        const alreadyLiked=await client.db('Communityapi').collection('likes').findOne({postid:postId,likerid:mongodbuserid});
+        if(alreadyLiked){
+            res.status(409).json({message:"You already liked the post"});
+        }
+        else{
+            const postObject= await client.db('Communityapi').collection('posts').findOne({
+                _id:postId,
+            })
+            const creatorid= postObject.creator;
+            await client.db('Communityapi').collection('likes').insertOne({
+                likerid:mongodbuserid,
+                postid:postId,
+                creatorid:creatorid
+            })
+            res.status(200).json({message:"You liked the Post"});
+        }
+    }
+    catch(error){
+        console.log(error);
+        res.status(501).json({message:"Could not like the post"})
+    }
+}
+
+const unlikePost= async (req,res)=>{
+    const postId=new ObjectId(req.params.id);
+    const mongodbuserid =new ObjectId(req.mongodbuserid);
+    try{
+        const liked=await client.db('Communityapi').collection('likes').findOne({postid:postId,likerid:mongodbuserid});
+        if(liked){
+            await client.db('Communityapi').collection('likes').deleteOne({
+                likerid:mongodbuserid,
+                postid:postId
+            })
+            res.status(200).json({message:"You disliked the Post"});
+        }
+        else{
+            res.status(409).json({message:"You didn't like the post"});
+        }
+    }
+    catch(error){
+        console.log(error);
+        res.status(501).json({message:"Could not unlike the post"})
+    }
+}
+//comments
+
+const getComments=async (req,res)=>{
+    
+}
+
+const addComment = async (req,res)=>{
+
+}
+
+const updateComment= async (req,res)=>{
+
+}
+
+const deleteComment=async (req,res)=>{
+
+}
+
+const likeComment=async (req,res)=>{
+
+}
 module.exports={
-    getMyposts,createPost,updatePost,deletePost,getTimeline,makeInvisible,makeVisible
+    getMyposts,createPost,updatePost,deletePost,getTimeline,makeInvisible,
+    makeVisible,likePost,unlikePost,getComments,addComment,updateComment,deleteComment,likeComment
 }
