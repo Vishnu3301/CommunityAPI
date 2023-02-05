@@ -123,7 +123,7 @@ const likePost = async (req,res)=>{
     const postId=new ObjectId(req.params.id);
     const mongodbuserid =new ObjectId(req.mongodbuserid);
     try{
-        const alreadyLiked=await client.db('Communityapi').collection('likes').findOne({postid:postId,likerid:mongodbuserid});
+        const alreadyLiked=await client.db('Communityapi').collection('postlikes').findOne({postid:postId,likerid:mongodbuserid});
         if(alreadyLiked){
             res.status(409).json({message:"You already liked the post"});
         }
@@ -132,7 +132,7 @@ const likePost = async (req,res)=>{
                 _id:postId,
             })
             const creatorid= postObject.creator;
-            await client.db('Communityapi').collection('likes').insertOne({
+            await client.db('Communityapi').collection('postlikes').insertOne({
                 likerid:mongodbuserid,
                 postid:postId,
                 creatorid:creatorid
@@ -150,9 +150,9 @@ const unlikePost= async (req,res)=>{
     const postId=new ObjectId(req.params.id);
     const mongodbuserid =new ObjectId(req.mongodbuserid);
     try{
-        const liked=await client.db('Communityapi').collection('likes').findOne({postid:postId,likerid:mongodbuserid});
+        const liked=await client.db('Communityapi').collection('postlikes').findOne({postid:postId,likerid:mongodbuserid});
         if(liked){
-            await client.db('Communityapi').collection('likes').deleteOne({
+            await client.db('Communityapi').collection('postlikes').deleteOne({
                 likerid:mongodbuserid,
                 postid:postId
             })
@@ -170,25 +170,147 @@ const unlikePost= async (req,res)=>{
 //comments
 
 const getComments=async (req,res)=>{
-    
+    const postId= new ObjectId(req.params.id);
+    //for now , this gets all comments on the post (not the replies just the comments- parent comments)
+    //pagination and sort to be implemented
+    try{
+        const comments=await client.db('Communityapi').collection('comments').aggregate([
+            {
+                $match:{postid:postId,onpost:true}
+            }
+            ,
+            {
+                $project:{_id:0,commentatorid:0,postid:0,onpost:0}
+            }
+        ]).toArray();
+        res.status(200).json(comments);
+    }
+    catch(error){
+        console.log(error);
+        res.status(501).json({message:"Can't get the comments at the moment"})
+    }
 }
 
 const addComment = async (req,res)=>{
-
+    const mongodbuserid=new ObjectId(req.mongodbuserid);
+    const postid=new ObjectId(req.params.id);
+    const text=req.body.text
+    try{
+        const userObject=await client.db('Communityapi').collection('userInfo').findOne({_id:mongodbuserid});
+        const username=userObject.username;
+        await client.db('Communityapi').collection('comments').insertOne({
+            postid:postid, //this is the post id the user is commenting on
+            commentatorid:mongodbuserid, //this is the id of user that is commenting
+            onpost:true,//this signifies that the comment is directly on the post and not a reply to any comment on that post
+            username:username,
+            text:text,
+            timestamp:new Date()
+        })
+        res.status(200).json({message:"Commented Succesfully"})
+    }
+    catch(error){
+        console.log(error);
+        res.status(501).json({message:"Can't commment on the post  - Server error"})
+    }
 }
 
 const updateComment= async (req,res)=>{
-
+    const postId=new ObjectId(req.params.id);
+    const commentid=new ObjectId(req.params.commentid)
+    const updatedComment=req.body;
+    try{
+        await client.db('Communityapi').collection('comments').updateOne({_id:commentid,postid:postId},{
+            $set:updatedComment
+        });
+        res.status(200).json({message:"Comment Updated Succefully"})
+    }
+    catch(error){
+        console.log(error);
+        res.status(501).json({message:"Can't update the commment"})
+    }
 }
 
 const deleteComment=async (req,res)=>{
-
+    const postId=new ObjectId(req.params.id);
+    const commentId=new ObjectId(req.params.commentid);
+    try{
+        await client.db('Communityapi').collection('comments').deleteOne({_id:commentId,postid:postId});
+        res.status(200).json({message:"Comment deleted Succefully"})
+    }
+    catch(error){
+        console.log(error);
+        res.status(501).json({message:"Can't delete the commment"})
+    }
 }
 
 const likeComment=async (req,res)=>{
-
+    const mongodbuserid=new ObjectId(req.mongodbuserid);
+    const commentId=new ObjectId(req.params.commentid);
+    try{
+        const alreadyLiked=await client.db("Communityapi").collection('commentlikes').findOne({commentid:commentId,likerid:mongodbuserid});
+        if(alreadyLiked){
+            res.status(409).json({message:"You have already liked the comment"})
+        }
+        else{
+            await client.db('Communityapi').collection('commentlikes').insertOne({
+                commentid:commentId,
+                likerid:mongodbuserid
+            })
+            res.status(200).json({message:"You liked this comment"})
+        }
+    }
+    catch(error){
+        console.log(error);
+        res.status(501).json({message:"Can't like the commment"})
+    }
 }
+
+const unlikeComment= async (req,res)=>{
+    const mongodbuserid=new ObjectId(req.mongodbuserid);
+    const commentId=new ObjectId(req.params.commentid);
+    try{
+        const notLiked=await client.db("Communityapi").collection('commentlikes').findOne({commentid:commentId,likerid:mongodbuserid});
+        if(!notLiked){
+            res.status(409).json({message:"You didn't like this comment"})
+        }
+        else{
+            await client.db('Communityapi').collection('commentlikes').deleteOne({
+                commentid:commentId,
+                likerid:mongodbuserid
+            })
+            res.status(200).json({message:"You disliked this comment"})
+        }
+    }
+    catch(error){
+        console.log(error);
+        res.status(501).json({message:"Can't dislike the comment"})
+    }
+}
+
+const replyComment= async (req,res)=>{
+    const postId=new ObjectId(req.params.id);
+    const mongodbuserid=new ObjectId(req.mongodbuserid);
+    const commentId=new ObjectId(req.params.commentid);
+    const text=req.body.text
+    try{
+        await client.db('Communityapi').collection('comments').insertOne({
+            postid:postId,
+            commentatorid:mongodbuserid,
+            parentcommentid:commentId,
+            text:text,
+            timestamp:new Date()
+        })
+        res.status(200).json({message:"Replied to this comment"})
+    }
+    catch(error){
+        console.log(error);
+        res.status(501).json({message:"Can't reply to this comment"});
+    }
+}
+
+
 module.exports={
     getMyposts,createPost,updatePost,deletePost,getTimeline,makeInvisible,
-    makeVisible,likePost,unlikePost,getComments,addComment,updateComment,deleteComment,likeComment
+    makeVisible,likePost,unlikePost,getComments,addComment,updateComment,deleteComment,likeComment,
+    replyComment,unlikeComment
 }

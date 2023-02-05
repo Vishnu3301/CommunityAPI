@@ -2,9 +2,9 @@ const express=require('express');
 const postRouter=express.Router();
 const isLoggedin=require('../middleware/tokenChecker');
 const {getMyposts,createPost,getTimeline,updatePost,deletePost,makeInvisible, makeVisible, likePost, 
-    unlikePost, likeComment,getComments,addComment,updateComment,deleteComment,likeComment}=require('../controllers/postControllers')
+    unlikePost,getComments,addComment,updateComment,deleteComment,likeComment,replyComment,unlikeComment}=require('../controllers/postControllers')
 const {isCreator}=require('../middleware/authorisedUser')
-
+const {isCommentator}=require('../middleware/commentatorCheck')
 //for now all posts are public
 
 postRouter.get('/',isLoggedin,getMyposts); //get all the posts of the current logged in user
@@ -18,10 +18,12 @@ postRouter.put('/:id/like',isLoggedin,likePost); //like a post
 postRouter.delete('/:id/like',isLoggedin,unlikePost); //unlike post
 
 //comment routes
-//to be implemented
-postRouter.get('/:id/comments',getComments) //get all comments on that post with pagination
-postRouter.post('/:id/comments',addComment) //comment on that post
-postRouter.put('/:id/comments/:commentid',updateComment) //update a specific comment
-postRouter.delete('/:id/comments/:commentid',deleteComment) //delete a comment
-postRouter.put('/:id/comments/:commentid/like',likeComment) //like a comment
+postRouter.get('/:id/comments',isLoggedin,getComments) //get all comments on that post with pagination 
+postRouter.post('/:id/comment',isLoggedin,addComment) //comment on that post 
+postRouter.post('/:id/comments/:commentid/reply',isLoggedin,replyComment) //reply to a specific comment
+postRouter.put('/:id/comments/:commentid',isLoggedin,isCommentator,updateComment) //update a specific comment 
+postRouter.delete('/:id/comments/:commentid',isLoggedin,isCommentator,deleteComment) //delete a comment 
+postRouter.put('/:id/comments/:commentid/like',isLoggedin,likeComment) //like a comment 
+postRouter.delete('/:id/comments/:commentid/like',isLoggedin,unlikeComment)//unlike a comment 
+
 module.exports=postRouter

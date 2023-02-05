@@ -14,7 +14,7 @@ const firebaseConfig={
     appId: process.env.APPID,
     measurementId: process.env.MEASUREMENTID
 };
-const appFirebase = initializeApp(firebaseConfig);
+initializeApp(firebaseConfig);
 const auth = getAuth();
 
 //signup controller
@@ -41,7 +41,6 @@ const signup = async (req,res)=>{
             }
             //store user profile in mongodb
             const mongodbUserInfo=await client.db('Communityapi').collection('userInfo').insertOne(userDetails);
-            console.log(mongodbUserInfo);
             const mongodbuserid=mongodbUserInfo.insertedId;
             const token=jwt.sign({firebaseuserid:userId,mongodbuserid:mongodbuserid,email:email},key);
             res.status(200).json({message:"SignedUp successfully",token:token});
@@ -62,8 +61,8 @@ const login = async (req,res)=>{
     try{
         const userInfo=await signInWithEmailAndPassword(auth,email,password);
         const userId=userInfo.user.uid
-        const mongodbuserinfo=await client.db('Communityapi').collection('userInfo').find({email:email}).toArray();
-        const mongodbuserid=mongodbuserinfo[0]._id;
+        const mongodbuserinfo=await client.db('Communityapi').collection('userInfo').findOne({email:email});
+        const mongodbuserid=mongodbuserinfo._id;
         const token= jwt.sign({fireabaseuserid:userId,mongodbuserid:mongodbuserid,email:email},key)
         res.status(200).send({message:"signed in succesfully",token:token});
     }

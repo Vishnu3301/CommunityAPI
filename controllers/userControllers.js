@@ -118,9 +118,10 @@ const getStats= async (req,res)=>{
         const userInfo= await client.db('Communityapi').collection('userInfo').findOne({username:username});
         if(userInfo){
             const mongodbuserid= userInfo._id
-            const postsCount= await client.db('Communityapi').collection('posts').countDocuments({creator:mongodbuserid});
-            const likesCount= await client.db('Communityapi').collection('likes').countDocuments({creatorid:mongodbuserid}); //the total likes user got over all his posts combined
-            res.status(200).json({"postscount": `${postsCount}`,"likescount":`${likesCount}`});
+            const postsCount= await client.db('Communityapi').collection('posts').countDocuments({creator:mongodbuserid}); //the total number of posts user created
+            const likesCount= await client.db('Communityapi').collection('postlikes').countDocuments({creatorid:mongodbuserid}); //the total likes user got over all his posts combined
+            const commentsCount = await client.db('Communityapi').collection('comments').countDocuments({commentatorid:mongodbuserid}); //the total number of comments the user made
+            res.status(200).json({"postscount": `${postsCount}`,"likescount":`${likesCount}`,"commentscount":`${commentsCount}`});
         }
         else{
             res.status(200).json({message:"No such user exists"})
@@ -141,7 +142,7 @@ const myDetails = async (req,res)=>{
     }
     catch(error){
         console.log(error);
-        res.status(501).json({message:"ould not find your details - Server error"});
+        res.status(501).json({message:"Could not find your details - Server error"});
     }
 }
 

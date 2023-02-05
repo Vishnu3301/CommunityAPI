@@ -3,7 +3,6 @@ const {getClient}=require('../db');
 const client=getClient();
 const isCreator=async (req,res,next)=>{
     const postId=new ObjectId(req.params.id); //get the post id passed in parameters
-    const mongodbuserid=new ObjectId(req.mongodbuserid); 
     try{
         const postObject=await client.db('Communityapi').collection('posts').findOne({_id:postId}) //find the post document
         if(postObject.creator.equals(mongodbuserid)){
