@@ -10,13 +10,12 @@ const isLoggedin= (req,res,next)=>{
             token=token.split(' ')[1];
             const user=jwt.verify(token,key);
             req.firebaseuserid=user.firebaseuserid;
-            req.mongodbuserid=user.mongodbuserid;
             req.email=user.email;
+            next();
         }
         else{
             return res.status(401).json({message:"Unauthorized Action"});
         }
-        next();
     }
     catch(error){
         console.log(error);
@@ -25,4 +24,4 @@ const isLoggedin= (req,res,next)=>{
     }
 }
 
-module.exports=isLoggedin
+module.exports={isLoggedin}

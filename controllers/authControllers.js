@@ -5,6 +5,7 @@ const {initializeApp}=require('firebase/app');
 const {getAuth,createUserWithEmailAndPassword, signInWithEmailAndPassword}=require('firebase/auth')
 const {getClient}=require('../db');
 const client=getClient();
+const _db=client.db('Communityapi');
 const firebaseConfig={
     apiKey: process.env.APIKEY,
     authDomain: process.env.AUTHDOMAIN,
@@ -21,7 +22,7 @@ const auth = getAuth();
 const signup = async (req,res)=>{
     const {name,gender,profession,mobile,location,email,password,username}=req.body;
     try{
-        const foundUser= await client.db('Communityapi').collection('userInfo').findOne({username:username});
+        const foundUser= await _db.collection('userInfo').findOne({username:username});
         if(foundUser){
             res.status(400).json({message:"Username is already taken"});
         }
@@ -40,9 +41,8 @@ const signup = async (req,res)=>{
                 
             }
             //store user profile in mongodb
-            const mongodbUserInfo=await client.db('Communityapi').collection('userInfo').insertOne(userDetails);
-            const mongodbuserid=mongodbUserInfo.insertedId;
-            const token=jwt.sign({firebaseuserid:userId,mongodbuserid:mongodbuserid,email:email},key);
+            await _db.collection('userInfo').insertOne(userDetails);
+            const token=jwt.sign({firebaseuserid:userId,email:email},key);
             res.status(200).json({message:"SignedUp successfully",token:token});
         }
     }
@@ -61,9 +61,7 @@ const login = async (req,res)=>{
     try{
         const userInfo=await signInWithEmailAndPassword(auth,email,password);
         const userId=userInfo.user.uid
-        const mongodbuserinfo=await client.db('Communityapi').collection('userInfo').findOne({email:email});
-        const mongodbuserid=mongodbuserinfo._id;
-        const token= jwt.sign({fireabaseuserid:userId,mongodbuserid:mongodbuserid,email:email},key)
+        const token= jwt.sign({firebaseuserid:userId,email:email},key)
         res.status(200).send({message:"signed in succesfully",token:token});
     }
     catch(error){

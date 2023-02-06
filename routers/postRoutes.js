@@ -1,6 +1,6 @@
 const express=require('express');
 const postRouter=express.Router();
-const isLoggedin=require('../middleware/tokenChecker');
+const {isLoggedin}=require('../middleware/tokenChecker');
 const {getMyposts,createPost,getTimeline,updatePost,deletePost,makeInvisible, makeVisible, likePost, 
     unlikePost,getComments,addComment,updateComment,deleteComment,likeComment,replyComment,unlikeComment}=require('../controllers/postControllers')
 const {isCreator}=require('../middleware/authorisedUser')
@@ -26,4 +26,4 @@ postRouter.delete('/:id/comments/:commentid',isLoggedin,isCommentator,deleteComm
 postRouter.put('/:id/comments/:commentid/like',isLoggedin,likeComment) //like a comment 
 postRouter.delete('/:id/comments/:commentid/like',isLoggedin,unlikeComment)//unlike a comment 
 
-module.exports=postRouter
+module.exports={postRouter}
