@@ -7,12 +7,17 @@ const isCreator=async (req,res,next)=>{
     const firebaseuserid=req.firebaseuserid
     try{
         let postObject=await _db.collection('posts').findOne({_id:postId}) //find the post document
-        if(postObject.creatorid===firebaseuserid){
-            next();
+        if(postObject){
+            if(postObject.creatorid===firebaseuserid){
+                next();
+            }
+            else{
+                //the user who is requesting either delete or update for this post is not the creator of it
+                return res.status(401).json({message:"User not authorized to do this operation - You are not the creator of the post"})
+            }
         }
         else{
-            //the user who is requesting either delete or update for this post is not the creator of it
-            return res.status(401).json({message:"User not authorized to do this operation - You are not the creator of the post"})
+            return res.status(409).json({message:"Post doesnot exist anymore"})
         }
     }
     catch(error){

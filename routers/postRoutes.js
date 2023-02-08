@@ -1,11 +1,10 @@
 const express=require('express');
 const postRouter=express.Router();
-const {isLoggedin}=require('../middleware/tokenChecker');
+const {isLoggedin}=require('../middleware/isAuthenticated');
 const {getMyposts,createPost,getTimeline,updatePost,deletePost,makeInvisible, makeVisible, likePost, 
     unlikePost,getComments,addComment,updateComment,deleteComment,likeComment,replyComment,unlikeComment}=require('../controllers/postControllers')
-const {isCreator}=require('../middleware/authorisedUser')
-const {isCommentator}=require('../middleware/commentatorCheck')
-//for now all posts are public
+const {isCreator}=require('../middleware/isPostCreator')
+const {isCommentator}=require('../middleware/isCommentator')
 
 postRouter.get('/',isLoggedin,getMyposts); //get all the posts of the current logged in user
 postRouter.get('/timeline',isLoggedin,getTimeline); //get the timeline posts of the current logged in user

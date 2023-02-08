@@ -1,6 +1,6 @@
 const express=require('express');
 const userRouter=express.Router();
-const {isLoggedin} = require('../middleware/tokenChecker');
+const {isLoggedin} = require('../middleware/isAuthenticated');
 const {getUser,getfollowerCount,myDetails,getStats,followUser,unfollowUser,updateUser, getFollowers}=require('../controllers/userControllers')
 
 userRouter.get('/self',isLoggedin,myDetails); //get the current users details

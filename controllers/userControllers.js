@@ -40,7 +40,8 @@ const followUser = async (req,res)=>{
                     await _db.collection('follows').insertOne({
                         followerid:followerid, //this user requested to follow the below user
                         followedid:guestUserId, //this user gains a follower
-                        follwerusername:followerObject.username
+                        follwerusername:followerObject.username,
+                        followedAt:new Date()
                     })
                     return res.status(200).json({message:"You are now following the user"})
                 }
@@ -88,8 +89,8 @@ const unfollowUser = async (req,res)=>{
 const updateUser= async (req,res)=>{
     const firebaseuserid=req.firebaseuserid
     try{
-        const updatedFields=req.body;
-        const ans=await _db.collection('userInfo').updateOne({userid:firebaseuserid},{
+        let updatedFields={...req.body,updatedAt:new Date()};
+        await _db.collection('userInfo').updateOne({userid:firebaseuserid},{
             $set: updatedFields
         })
         return res.status(200).json({message:"Updated your Info"})
@@ -143,7 +144,7 @@ const getStats= async (req,res)=>{
 const myDetails = async (req,res)=>{
     const firebaseuserid = req.firebaseuserid
     try{
-        const myInfo=await _db.collection('userInfo').findOne({user:firebaseuserid});
+        const myInfo=await _db.collection('userInfo').findOne({userid:firebaseuserid});
         const {_id,userid,...safeInfo}=myInfo;
         return res.status(200).json(safeInfo);
     }

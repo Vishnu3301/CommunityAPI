@@ -11,7 +11,7 @@ const getMyposts= async (req,res)=>{
             $match:{ creatorid: firebaseuserid,visible:true}
         },
         {
-            $sort:{createdAt:-1} //for now the default sorting is  by created date
+            $sort:{createdAt:-1} //for now the default sorting is  by created date -desc
         },
         {
             $skip:parseInt((page-1)*postsPerPage)
@@ -47,11 +47,14 @@ const createPost = async (req,res)=>{
         //create new post
         //add conditions to check whether title and description is given or not
         if(title && description){
+            const userObject= await _db.collection('userInfo').findOne({userid:firebaseuserid});
+            const username=userObject.username
             await _db.collection('posts').insertOne({
                 title,
                 description,
                 creatorid:firebaseuserid,
                 visible,
+                username,
                 createdAt:new Date()
             })
             return res.status(200).json({"message":"post created succesfully"})
@@ -144,7 +147,7 @@ const likePost = async (req,res)=>{
             const postObject= await _db.collection('posts').findOne({
                 _id:postId,
             })
-            const creatorid= postObject.creator;
+            const creatorid= postObject.creatorid;
             await _db.collection('postlikes').insertOne({
                 likerid:firebaseuserid,
                 postid:postId,
@@ -206,19 +209,25 @@ const getComments=async (req,res)=>{
 
 const addComment = async (req,res)=>{
     const firebaseuserid=req.firebaseuserid
-    const postid=new ObjectId(req.params.id);
+    const postId=new ObjectId(req.params.id);
     const text=req.body.text
     try{
         const userObject=await _db.collection('userInfo').findOne({userid:firebaseuserid});
         const username=userObject.username;
-        await _db.collection('comments').insertOne({
-            postid:postid, //this is the post id the user is commenting on
+        const postObject= await _db.collection('posts').findOne({_id:postId})
+        let newDocument={
+            postid:postId, //this is the post id the user is commenting on
             commentatorid:firebaseuserid, //this is the id of user that is commenting
             onpost:true,//this signifies that the comment is directly on the post and not a reply to any comment on that post
             username:username,
             text:text,
             createdAt:new Date()
-        })
+        }
+        const groupid=postObject.groupid
+        if(groupid){
+            newDocument={...newDocument,groupid:groupid}
+        }
+        await _db.collection('comments').insertOne(newDocument)
         return res.status(200).json({message:"Commented Succesfully"})
     }
     catch(error){
@@ -230,7 +239,7 @@ const addComment = async (req,res)=>{
 const updateComment= async (req,res)=>{
     const postId=new ObjectId(req.params.id);
     const commentid=new ObjectId(req.params.commentid)
-    let updatedComment={...req.body,updatedAt:new Date()};
+    let updatedComment={...req.body,updatedAt:new Date(),updaterid:req.firebaseuserid};
     try{
         await _db.collection('comments').updateOne({_id:commentid,postid:postId},{
             $set:updatedComment
@@ -248,6 +257,7 @@ const deleteComment=async (req,res)=>{
     const commentId=new ObjectId(req.params.commentid);
     try{
         await _db.collection('comments').deleteOne({_id:commentId,postid:postId});
+        await _db.collection('comments').deleteMany({parentcommentid:commentId})
         return res.status(200).json({message:"Comment deleted Succefully"})
     }
     catch(error){
@@ -266,11 +276,18 @@ const likeComment=async (req,res)=>{
             return res.status(409).json({message:"You have already liked the comment"})
         }
         else{
-            await _db.collection('commentlikes').insertOne({
+            let newDocument={
                 postid:postId,
                 commentid:commentId,
-                likerid:firebaseuserid
-            })
+                likerid:firebaseuserid,
+                likedAt:new Date()
+            }
+            const postObject= await _db.collection('posts').findOne({_id:postId})
+            const groupid=postObject.groupid
+            if(groupid){
+                newDocument={...newDocument,groupid:groupid}
+            }
+            await _db.collection('commentlikes').insertOne(newDocument)
             return res.status(200).json({message:"You liked this comment"})
         }
     }
@@ -308,13 +325,19 @@ const replyComment= async (req,res)=>{
     const commentId=new ObjectId(req.params.commentid);
     const text=req.body.text
     try{
-        await _db.collection('comments').insertOne({
+        let newDocument={
             postid:postId,
             commentatorid:firebaseuserid,
             parentcommentid:commentId,
             text:text,
-            timestamp:new Date()
-        })
+            repliedAt:new Date()
+        }
+        const postObject= await _db.collection('posts').findOne({_id:postId})
+        const groupid=postObject.groupid
+        if(groupid){
+            newDocument={...newDocument,groupid:groupid}
+        }
+        await _db.collection('comments').insertOne(newDocument)
         return res.status(200).json({message:"Replied to this comment"})
     }
     catch(error){

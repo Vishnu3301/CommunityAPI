@@ -15,13 +15,17 @@ const firebaseConfig={
     appId: process.env.APPID,
     measurementId: process.env.MEASUREMENTID
 };
-initializeApp(firebaseConfig);
-const auth = getAuth();
+
+const firebaseapp=initializeApp(firebaseConfig);
+const auth = getAuth(firebaseapp);
 
 //signup controller
 const signup = async (req,res)=>{
     const {name,gender,profession,mobile,location,email,password,username}=req.body;
     try{
+        if(!username){
+            return res.status(422).json({message:"missing username"});
+        }
         const foundUser= await _db.collection('userInfo').findOne({username:username});
         if(foundUser){
             res.status(400).json({message:"Username is already taken"});
@@ -37,21 +41,22 @@ const signup = async (req,res)=>{
                 profession:profession,
                 mobile:mobile,
                 location:location,
-                userid:userId
+                userid:userId,
+                createdAt:new Date()
                 
             }
             //store user profile in mongodb
             await _db.collection('userInfo').insertOne(userDetails);
             const token=jwt.sign({firebaseuserid:userId,email:email},key);
-            res.status(200).json({message:"SignedUp successfully",token:token});
+            return res.status(200).json({message:"SignedUp successfully",token:token});
         }
     }
     catch(error){
         console.log(error);
         if(error.code){
-            res.status(401).json({message:`${error.code.slice(5)}`})
+            return res.status(401).json({message:`${error.code.slice(5)}`})
         }
-        res.status(401).json({message:"Error occured while storing user info"});
+        return res.status(401).json({message:"Error occured while storing user info"});
     }
 }
 
@@ -62,11 +67,11 @@ const login = async (req,res)=>{
         const userInfo=await signInWithEmailAndPassword(auth,email,password);
         const userId=userInfo.user.uid
         const token= jwt.sign({firebaseuserid:userId,email:email},key)
-        res.status(200).send({message:"signed in succesfully",token:token});
+        return res.status(200).send({message:"signed in succesfully",token:token});
     }
     catch(error){
         console.log(error);
-        res.status(401).json({message:`${error.code.slice(5)}`})
+        return res.status(401).json({message:`${error.code.slice(5)}`})
     }
 }
 
