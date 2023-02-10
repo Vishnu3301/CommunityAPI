@@ -1,4 +1,6 @@
 const jwt=require('jsonwebtoken'); //jwt for api security
+const path=require('path')
+require('dotenv').config({path:path.resolve(__dirname+'../.env')})
 const key=process.env.SECRETKEY //secret key to sign the payload for token
 //conneting to firebase for user authentication
 const {initializeApp}=require('firebase/app');

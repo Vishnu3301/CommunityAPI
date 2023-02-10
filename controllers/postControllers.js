@@ -2,6 +2,10 @@ const {getClient}=require('../db');
 const client=getClient();
 const {ObjectId}=require('mongodb');
 const _db=client.db('Communityapi');
+let {mailingOptions}=require('../mailerService');
+const Producer = require('../rabbitmq/publisher');
+const producer=new Producer()
+
 const getMyposts= async (req,res)=>{
     const firebaseuserid=req.firebaseuserid;
     try{
@@ -148,12 +152,31 @@ const likePost = async (req,res)=>{
                 _id:postId,
             })
             const creatorid= postObject.creatorid;
+            const receiverObject=await _db.collection('userInfo').findOne({userid:creatorid})
+            const likerObject= await _db.collection('userInfo').findOne({userid:firebaseuserid})
+            const likerUsername=likerObject.username //get likers username to memtion in mail
+            const receiverEmail=receiverObject.email //get post creator's email id to send email
             await _db.collection('postlikes').insertOne({
                 likerid:firebaseuserid,
                 postid:postId,
                 creatorid:creatorid
             })
-            res.status(200).json({message:"You liked the Post"});
+            if(firebaseuserid!==creatorid){
+                try{
+                    const routingKey=process.env.MAILING_SERVICE_BINDING_KEY
+                    const data={
+                        receiver:receiverEmail,
+                        body:`${likerUsername} just Liked your Post`
+                    }
+                    await producer.publishMessage(routingKey,data)
+                    return res.status(200).json({message:"You liked the Post"});
+                }
+                catch(error){
+                    console.log(error);
+                    return res.status(200).json({message:"Liked the post-but failed to send mail"})
+                }
+            }
+            return res.status(200).json({message:"You liked the Post"});
         }
     }
     catch(error){
@@ -197,6 +220,9 @@ const getComments=async (req,res)=>{
             ,
             {
                 $project:{_id:0,commentatorid:0,postid:0,onpost:0}
+            },
+            {
+                $sort:{createdAt:-1,updatedAt:-1}
             }
         ]).toArray();
         res.status(200).json(comments);

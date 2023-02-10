@@ -209,7 +209,25 @@ const fetchMembers = async (req,res)=>{
 }
 
 const getTimeline = async (req,res)=>{
-    //to be implemented
+    try{
+        const groupid=ObjectId(req.params.id);
+        const timelinePosts=await _db.collection('posts').aggregate([
+            {
+                $match:{groupid:groupid}
+            },
+            {
+                $sort:{createdAt:-1,updatedAt:-1}
+            },
+            {
+                $project:{_id:0,title:1,description:1}
+            }
+        ]).toArray()
+        return res.status(200).json(timelinePosts);
+    }
+    catch(error){
+        console.log(error);
+        return res.status(501).json({message:"Can't get timeline posts of this group - Server side error"})
+    }
 }
 
 const updateGroup = async (req,res)=>{
