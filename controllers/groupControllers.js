@@ -2,7 +2,9 @@ const { ObjectId } = require('mongodb');
 const {getClient}=require('../db')
 const client=getClient();
 const _db=client.db('Communityapi');
-
+const path = require('path')
+require('dotenv').config({ path: path.resolve(__dirname, '../.env') })
+const {sendToMailingQueue}=require('../rabbitmq/publisher')
 const createGroup = async (req,res)=>{
     try{
         const firebaseuserid=req.firebaseuserid
@@ -128,7 +130,20 @@ const createPost = async (req,res)=>{
                 ingroup:true, //this specifies that this post is restricted in this group
                 createdAt:new Date()
             })
-            return res.status(200).json({message:"Created a post in this group"})
+            try{
+                const rewardQueue=process.env.REWARDQUEUE;
+                const data={
+                    type:'credit',
+                    points:3,
+                    userid1:firebaseuserid
+                }
+                await sendToMailingQueue(rewardQueue,data)
+                return res.status(200).json({"message":"Post created succesfully in the group"})
+            }
+            catch(error){
+                console.log(error);
+                return res.status(200).json({message:"Post created - Reward service is down at the moment"})
+            }
         }
     }
     catch(error){

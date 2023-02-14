@@ -1,10 +1,11 @@
 const {getClient}=require('../db');
 const client=getClient();
+const path = require('path')
+require('dotenv').config({ path: path.resolve(__dirname, '../.env') })
 const {ObjectId}=require('mongodb');
 const _db=client.db('Communityapi');
 let {mailingOptions}=require('../mailerService');
-const Producer = require('../rabbitmq/publisher');
-const producer=new Producer()
+const {sendToMailingQueue}=require('../rabbitmq/publisher')
 
 const getMyposts= async (req,res)=>{
     const firebaseuserid=req.firebaseuserid;
@@ -39,6 +40,8 @@ const getTimeline = async (req,res)=>{
     //to be implemented
 }
 
+//creating post by this method means  the post is public and can be viewed by anyone
+//add 3 points reward
 const createPost = async (req,res)=>{
     const firebaseuserid=req.firebaseuserid;
     try{
@@ -49,7 +52,7 @@ const createPost = async (req,res)=>{
             visible=false;
         }
         //create new post
-        //add conditions to check whether title and description is given or not
+        //conditions to check whether title and description is given or not
         if(title && description){
             const userObject= await _db.collection('userInfo').findOne({userid:firebaseuserid});
             const username=userObject.username
@@ -59,12 +62,26 @@ const createPost = async (req,res)=>{
                 creatorid:firebaseuserid,
                 visible,
                 username,
+                ingroup:false,
                 createdAt:new Date()
             })
-            return res.status(200).json({"message":"post created succesfully"})
+            try{
+                const rewardQueue=process.env.REWARDQUEUE; //send task to reward queue
+                const data={
+                    type:'credit',
+                    points:3,
+                    userid1:firebaseuserid
+                }
+                await sendToMailingQueue(rewardQueue,data)
+                return res.status(200).json({"message":"post created succesfully"})
+            }
+            catch(error){
+                console.log(error);
+                return res.status(200).json({message:"Post created - Reward service is down at the moment"})
+            }
         }
         else{
-            return res.status(400).json({"message":"insufficient details"})
+            return res.status(400).json({"message":"Insufficient details"})
         }
     }
     catch(error){
@@ -163,17 +180,21 @@ const likePost = async (req,res)=>{
             })
             if(firebaseuserid!==creatorid){
                 try{
-                    const routingKey=process.env.MAILING_SERVICE_BINDING_KEY
+                    const mailQueue=process.env.MAILINGQUEUE
+                    const rewardQueue=process.env.REWARDQUEUE;
+                    const points=1,userid1=firebaseuserid,userid2=creatorid,type='credit';
+                    const reward={type,points,userid1,userid2}
                     const data={
                         receiver:receiverEmail,
                         body:`${likerUsername} just Liked your Post`
                     }
-                    await producer.publishMessage(routingKey,data)
+                    await sendToMailingQueue(mailQueue,data)
+                    await sendToMailingQueue(rewardQueue,reward)
                     return res.status(200).json({message:"You liked the Post"});
                 }
                 catch(error){
                     console.log(error);
-                    return res.status(200).json({message:"Liked the post-but failed to send mail"})
+                    return res.status(200).json({message:"Liked the post - but failed to send mail/credit reward"})
                 }
             }
             return res.status(200).json({message:"You liked the Post"});
@@ -239,10 +260,12 @@ const addComment = async (req,res)=>{
     const text=req.body.text
     try{
         const userObject=await _db.collection('userInfo').findOne({userid:firebaseuserid});
-        const username=userObject.username;
+        const username=userObject.username; //user name of the liker
         const postObject= await _db.collection('posts').findOne({_id:postId})
+        const creatorId=postObject.creatorid
         let newDocument={
             postid:postId, //this is the post id the user is commenting on
+            creatorid:creatorId,//id of user created the post
             commentatorid:firebaseuserid, //this is the id of user that is commenting
             onpost:true,//this signifies that the comment is directly on the post and not a reply to any comment on that post
             username:username,
@@ -254,7 +277,36 @@ const addComment = async (req,res)=>{
             newDocument={...newDocument,groupid:groupid}
         }
         await _db.collection('comments').insertOne(newDocument)
-        return res.status(200).json({message:"Commented Succesfully"})
+        if(firebaseuserid!==creatorId){
+            const postCreatorObject= await _db.collection('userInfo').findOne({userid:creatorId})
+            const creatorEmail=postCreatorObject.email
+            try{
+                const mailQueue=process.env.MAILINGQUEUE; //for mail_subscriber
+                const rewardQueue=process.env.REWARDQUEUE; //for reward_subscriber
+                const points=1; //points for reward
+                const userid1=firebaseuserid; 
+                const userid2=creatorId
+                const type='credit' //type of reward
+                const reward={
+                    type,
+                    points,
+                    userid1,
+                    userid2
+                }
+                const mailData={
+                    receiver:creatorEmail,
+                    body:`${username} just commented on your post`
+                }
+                await sendToMailingQueue(mailQueue,mailData) //to mailingqueue
+                await sendToMailingQueue(rewardQueue,reward) //to reward queue
+                return res.status(200).json({message:"Commented Succesfully"})
+            }
+            catch(error){
+                console.log(error);
+                return res.status(200).json({message:"Commented Succesfully - but unable to send mail/reward failed"})
+            }
+        }
+        return res.status(200).json({message:'Commented Succesfully'})
     }
     catch(error){
         console.log(error);
@@ -359,11 +411,35 @@ const replyComment= async (req,res)=>{
             repliedAt:new Date()
         }
         const postObject= await _db.collection('posts').findOne({_id:postId})
+        const creatorId=postObject.creatorid
         const groupid=postObject.groupid
         if(groupid){
             newDocument={...newDocument,groupid:groupid}
         }
         await _db.collection('comments').insertOne(newDocument)
+        if(firebaseuserid!==creatorId){
+            try{
+                const creatorObject= await _db.collection('userInfo').findOne({userid:creatorId});
+                const creatorMail=creatorObject.email
+                const likerObject=await _db.collection('userInfo').findOne({userid:firebaseuserid});
+                const username=likerObject.username
+                const mailQueue=process.env.MAILINGQUEUE;
+                const rewardQueue=process.env.REWARDQUEUE
+                const points=1,userid1=firebaseuserid,userid2=creatorId,type='credit';
+                const reward={type,points,userid1,userid2};
+                const data={
+                    receiver:creatorMail,
+                    body:`${username} replied to a comment on your post`
+                }
+                await sendToMailingQueue(mailQueue,data);
+                await sendToMailingQueue(rewardQueue,reward)
+                return res.status(200).json({message:"Replied to Comment"})
+            }
+            catch(error){
+                console.log(error);
+                return res.status(200).json({message:"Replied to this comment - but unable to send mail/credit reward"})
+            }
+        }
         return res.status(200).json({message:"Replied to this comment"})
     }
     catch(error){
