@@ -4,7 +4,9 @@ const _db=client.db('Communityapi');
 const path = require('path')
 require('dotenv').config({ path: path.resolve(__dirname, '../.env') })
 const {ObjectId}=require('mongodb')
-const {sendToMailingQueue}=require('../rabbitmq/publisher')
+const {sendToWorkerQueue}=require('../rabbitmq/publisher')
+const mailQueue=process.env.MAILINGQUEUE
+const rewardQueue=process.env.REWARDQUEUE;
 const getUser = async (req,res)=>{
     try{
         const username=req.params.username;
@@ -50,16 +52,14 @@ const followUser = async (req,res)=>{
                     const guestUsermail=guestUserObject.email
                     //mailing service starts
                     try{
-                        const mailQueue=process.env.MAILINGQUEUE
-                        const rewardQueue=process.env.REWARDQUEUE;
                         const points=2,userid1=followerid,userid2=guestUserId,type='credit'
                         const reward={type,points,userid1,userid2};
                         const data={
                             receiver:guestUsermail,
                             body:`${followerObject.username} just followed you`
                         }
-                        await sendToMailingQueue(mailQueue,data)
-                        await sendToMailingQueue(rewardQueue,reward)
+                        await sendToWorkerQueue(mailQueue,data)
+                        await sendToWorkerQueue(rewardQueue,reward)
                         return res.status(200).json({message:"You followed the user"});
                     }
                     catch(error){
@@ -100,12 +100,11 @@ const unfollowUser = async (req,res)=>{
                 const guestUsermail=guestUserObject.email
                 //mailing service starts
                 try{
-                    const mailQueue=process.env.MAILINGQUEUE
                     const data={
                         receiver:guestUsermail,
                         body:`${followerObject.username} unfollowed you`
                     }
-                    await sendToMailingQueue(mailQueue,data)
+                    await sendToWorkerQueue(mailQueue,data)
                     return res.status(200).json({message:"You unfollowed the user"});
                 }
                 catch(error){
@@ -133,12 +132,11 @@ const updateUser= async (req,res)=>{
         })
         const userEmail=req.email;
         try{
-            const mailQueue=process.env.MAILINGQUEUE
             const data={
                 receiver:userEmail,
                 body:"Your Profile  has been updated"
             }
-            await sendToMailingQueue(mailQueue,data)
+            await sendToWorkerQueue(mailQueue,data)
             return res.status(200).json({message:"Your Profile has been updated"})
         }
         catch(error){

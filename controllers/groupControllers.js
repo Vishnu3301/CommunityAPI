@@ -4,7 +4,8 @@ const client=getClient();
 const _db=client.db('Communityapi');
 const path = require('path')
 require('dotenv').config({ path: path.resolve(__dirname, '../.env') })
-const {sendToMailingQueue}=require('../rabbitmq/publisher')
+const {sendToWorkerQueue}=require('../rabbitmq/publisher')
+
 const createGroup = async (req,res)=>{
     try{
         const firebaseuserid=req.firebaseuserid
@@ -137,7 +138,7 @@ const createPost = async (req,res)=>{
                     points:3,
                     userid1:firebaseuserid
                 }
-                await sendToMailingQueue(rewardQueue,data)
+                await sendToWorkerQueue(rewardQueue,data)
                 return res.status(200).json({"message":"Post created succesfully in the group"})
             }
             catch(error){

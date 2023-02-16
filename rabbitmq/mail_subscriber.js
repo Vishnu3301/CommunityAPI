@@ -1,7 +1,7 @@
 const amqp=require('amqplib')
 const path = require('path')
 require('dotenv').config({ path: path.resolve(__dirname, '../.env') })
-let {transport,mailOptions}=require('../mailerService')
+let {transport,mailOptions}=require('../utils/mailerService')
 
 
 async function consumeMessages(){

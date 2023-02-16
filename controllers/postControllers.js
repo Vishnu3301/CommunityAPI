@@ -5,8 +5,9 @@ require('dotenv').config({ path: path.resolve(__dirname, '../.env') })
 const {ObjectId}=require('mongodb');
 const _db=client.db('Communityapi');
 let {mailingOptions}=require('../mailerService');
-const {sendToMailingQueue}=require('../rabbitmq/publisher')
-
+const {sendToWorkerQueue}=require('../rabbitmq/publisher')
+const mailQueue=process.env.MAILINGQUEUE
+const rewardQueue=process.env.REWARDQUEUE;
 const getMyposts= async (req,res)=>{
     const firebaseuserid=req.firebaseuserid;
     try{
@@ -66,13 +67,12 @@ const createPost = async (req,res)=>{
                 createdAt:new Date()
             })
             try{
-                const rewardQueue=process.env.REWARDQUEUE; //send task to reward queue
                 const data={
                     type:'credit',
                     points:3,
                     userid1:firebaseuserid
                 }
-                await sendToMailingQueue(rewardQueue,data)
+                await sendToWorkerQueue(rewardQueue,data)
                 return res.status(200).json({"message":"post created succesfully"})
             }
             catch(error){
@@ -180,16 +180,14 @@ const likePost = async (req,res)=>{
             })
             if(firebaseuserid!==creatorid){
                 try{
-                    const mailQueue=process.env.MAILINGQUEUE
-                    const rewardQueue=process.env.REWARDQUEUE;
                     const points=1,userid1=firebaseuserid,userid2=creatorid,type='credit';
                     const reward={type,points,userid1,userid2}
                     const data={
                         receiver:receiverEmail,
                         body:`${likerUsername} just Liked your Post`
                     }
-                    await sendToMailingQueue(mailQueue,data)
-                    await sendToMailingQueue(rewardQueue,reward)
+                    await sendToWorkerQueue(mailQueue,data)
+                    await sendToWorkerQueue(rewardQueue,reward)
                     return res.status(200).json({message:"You liked the Post"});
                 }
                 catch(error){
@@ -281,8 +279,6 @@ const addComment = async (req,res)=>{
             const postCreatorObject= await _db.collection('userInfo').findOne({userid:creatorId})
             const creatorEmail=postCreatorObject.email
             try{
-                const mailQueue=process.env.MAILINGQUEUE; //for mail_subscriber
-                const rewardQueue=process.env.REWARDQUEUE; //for reward_subscriber
                 const points=1; //points for reward
                 const userid1=firebaseuserid; 
                 const userid2=creatorId
@@ -297,8 +293,8 @@ const addComment = async (req,res)=>{
                     receiver:creatorEmail,
                     body:`${username} just commented on your post`
                 }
-                await sendToMailingQueue(mailQueue,mailData) //to mailingqueue
-                await sendToMailingQueue(rewardQueue,reward) //to reward queue
+                await sendToWorkerQueue(mailQueue,mailData) //to mailingqueue
+                await sendToWorkerQueue(rewardQueue,reward) //to reward queue
                 return res.status(200).json({message:"Commented Succesfully"})
             }
             catch(error){
@@ -423,16 +419,14 @@ const replyComment= async (req,res)=>{
                 const creatorMail=creatorObject.email
                 const likerObject=await _db.collection('userInfo').findOne({userid:firebaseuserid});
                 const username=likerObject.username
-                const mailQueue=process.env.MAILINGQUEUE;
-                const rewardQueue=process.env.REWARDQUEUE
                 const points=1,userid1=firebaseuserid,userid2=creatorId,type='credit';
                 const reward={type,points,userid1,userid2};
                 const data={
                     receiver:creatorMail,
                     body:`${username} replied to a comment on your post`
                 }
-                await sendToMailingQueue(mailQueue,data);
-                await sendToMailingQueue(rewardQueue,reward)
+                await sendToWorkerQueue(mailQueue,data);
+                await sendToWorkerQueue(rewardQueue,reward)
                 return res.status(200).json({message:"Replied to Comment"})
             }
             catch(error){
