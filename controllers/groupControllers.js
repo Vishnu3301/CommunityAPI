@@ -135,7 +135,7 @@ const createPost = async (req,res)=>{
                 const rewardQueue=process.env.REWARDQUEUE;
                 const data={
                     type:'credit',
-                    points:3,
+                    points:5,
                     userid1:firebaseuserid
                 }
                 await sendToWorkerQueue(rewardQueue,data)

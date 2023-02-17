@@ -8,7 +8,7 @@ const {getClient}=require('../db')
 const client=getClient();
 const _db=client.db('Communityapi')
 
-async function rewardTwoUsers(userid1,userid2,points){
+async function rewardTwoUsers(type,userid1,userid2,points){
     try{
         await _db.collection('rewards').updateOne({userid:userid1},{
             $inc:{points: points}
@@ -20,21 +20,21 @@ async function rewardTwoUsers(userid1,userid2,points){
         },{
             upsert:true
         })
-        console.log("Reward credited to both users")
+        console.log(`Reward ${type}ed to both users`)
     }
     catch(error){
         return error
     }
 }
 
-async function rewardOneUser(userid1,points){
+async function rewardOneUser(type,userid1,points){
     try{
         await _db.collection('rewards').updateOne({userid:userid1},{
             $inc:{points: points}
         },{
             upsert:true
         })
-        console.log("Reward credited to the user")
+        console.log(`Reward ${type}ed to the user`)
     }
     catch(error){
         return error
@@ -46,7 +46,8 @@ async function consumeMessages(){
     await channel.assertQueue(process.env.REWARDQUEUE,{durable:true});
     channel.consume(process.env.REWARDQUEUE,async (msg)=>{
         const data=JSON.parse(msg.content);
-        const {type,points,userid1,userid2}=data;
+        const {type,userid1,userid2}=data;
+        let {points}=data;
         if(type==='debit'){
             points=-1*points
         }
@@ -55,7 +56,7 @@ async function consumeMessages(){
             //this means a route to make a comment/reply to comment/ follow a user is accessed
             //so we have to reward both the users with specified number of points
             try{
-                await rewardTwoUsers(userid1,userid2,points)
+                await rewardTwoUsers(type,userid1,userid2,points)
                 channel.ack(msg)
             }
             catch(error){
@@ -68,7 +69,7 @@ async function consumeMessages(){
             //this means a route to make post (either a public post or a post in a group )is accessed
             //so we have to reward only the post creator
             try{
-                await rewardOneUser(userid1,points)
+                await rewardOneUser(type,userid1,points)
                 channel.ack(msg)
             }
             catch(error){

@@ -104,12 +104,15 @@ const unfollowUser = async (req,res)=>{
                         receiver:guestUsermail,
                         body:`${followerObject.username} unfollowed you`
                     }
+                    const type='debit',points=2,userid1=followerid,userid2=guestUserId
+                    const reward={type,points,userid1,userid2}
                     await sendToWorkerQueue(mailQueue,data)
+                    await sendToWorkerQueue(rewardQueue,reward)
                     return res.status(200).json({message:"You unfollowed the user"});
                 }
                 catch(error){
                     console.log(error);
-                    return res.status(200).json({message:"Unfollowed the user - but failed to send mail"})
+                    return res.status(200).json({message:"Unfollowed the user - Reward/mail service is down at the moment`"})
                 }
             }
         }

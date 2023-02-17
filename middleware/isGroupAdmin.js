@@ -7,6 +7,9 @@ const isGroupAdmin = async (req,res,next)=>{
     const groupid=ObjectId(req.params.id);
     try{
         const groupObject=await _db.collection('groups').findOne({_id:groupid});
+        if(!groupObject){
+            return res.status(404).json({message:"Group not found"})
+        }
         const creatorid=groupObject.creatorid;
         if(firebaseuserid===creatorid){
             next();

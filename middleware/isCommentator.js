@@ -7,6 +7,9 @@ const isCommentator=async (req,res,next)=>{
     const firebaseuserid=req.firebaseuserid 
     try{
         const commentObject=await _db.collection('comments').findOne({_id:commentId}) //find the post document
+        if(!commentObject){
+            return res.status(404).json({message:"Comment you are trying to delete is not found"})
+        }
         if(commentObject.commentatorid===firebaseuserid){
             next();
         }

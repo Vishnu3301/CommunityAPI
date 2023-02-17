@@ -7,6 +7,9 @@ const isCreator=async (req,res,next)=>{
     const firebaseuserid=req.firebaseuserid
     try{
         let postObject=await _db.collection('posts').findOne({_id:postId}) //find the post document
+        if(!postObject){
+            return res.status(404).json({message:"Post not found"})
+        }
         if(postObject){
             if(postObject.creatorid===firebaseuserid){
                 next();

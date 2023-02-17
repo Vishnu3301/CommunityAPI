@@ -4,7 +4,6 @@ const path = require('path')
 require('dotenv').config({ path: path.resolve(__dirname, '../.env') })
 const {ObjectId}=require('mongodb');
 const _db=client.db('Communityapi');
-let {mailingOptions}=require('../mailerService');
 const {sendToWorkerQueue}=require('../rabbitmq/publisher')
 const mailQueue=process.env.MAILINGQUEUE
 const rewardQueue=process.env.REWARDQUEUE;
@@ -110,11 +109,26 @@ const updatePost = async (req,res)=>{
 const deletePost = async (req,res)=>{
     const postId=new ObjectId(req.params.id);
     try{
+        const postObject= await _db.collection('posts').findOne({_id:postId})
         await _db.collection('posts').deleteOne({_id:postId}); //delete the post
         await _db.collection('postlikes').deleteMany({postid:postId}) //delete the likes associated with the posts
         await _db.collection('comments').deleteMany({postid:postId}) //delete the comments associated with the post
         await _db.collection('commentlikes').deleteMany({postid:postId}) //delete the comment likes stored in different collection
-        return res.status(200).json({message:"Post deleted Succesfully"})
+        //when user deletes the post the credits regarding the post is only deleted
+        try{
+            const firebaseuserid=req.firebaseuserid
+            const type='debit',points=3,userid1=firebaseuserid
+            if(postObject.ingroup){
+                points=5;
+            }
+            const reward={type,points,userid1}
+            await sendToWorkerQueue(rewardQueue,reward)
+            return res.status(200).json({message:"You deleted the post"})
+        }
+        catch(error){
+            console.log(error);
+            return res.status(200).json({message:"You deleted the post - Reward service is down at the moment"})
+        }
     }
     catch(error){
         console.log(error);
@@ -214,7 +228,18 @@ const unlikePost= async (req,res)=>{
                 likerid:firebaseuserid,
                 postid:postId
             })
-            res.status(200).json({message:"You disliked the Post"});
+            try{
+                const postObject=await _db.collection('posts').findOne({_id:postId});
+                const creatorId=postObject.creatorid
+                const type='debit',points=1,userid1=firebaseuserid,userid2=creatorId
+                const reward={type,points,userid1,userid2};
+                await sendToWorkerQueue(rewardQueue,reward)
+                return res.status(200).json({message:"You disliked the post - rewards debited"})
+            }
+            catch(error){
+                console.log(error);
+                return res.status(200).json({message:"You disliked the post - reward service is down at the moment"})
+            }
         }
         else{
             res.status(409).json({message:"You didn't like the post"});
@@ -260,10 +285,10 @@ const addComment = async (req,res)=>{
         const userObject=await _db.collection('userInfo').findOne({userid:firebaseuserid});
         const username=userObject.username; //user name of the liker
         const postObject= await _db.collection('posts').findOne({_id:postId})
-        const creatorId=postObject.creatorid
+        const postCreatorId=postObject.creatorid
         let newDocument={
             postid:postId, //this is the post id the user is commenting on
-            creatorid:creatorId,//id of user created the post
+            creatorid:postCreatorId,//id of user created the post
             commentatorid:firebaseuserid, //this is the id of user that is commenting
             onpost:true,//this signifies that the comment is directly on the post and not a reply to any comment on that post
             username:username,
@@ -275,13 +300,13 @@ const addComment = async (req,res)=>{
             newDocument={...newDocument,groupid:groupid}
         }
         await _db.collection('comments').insertOne(newDocument)
-        if(firebaseuserid!==creatorId){
-            const postCreatorObject= await _db.collection('userInfo').findOne({userid:creatorId})
+        if(firebaseuserid!==postCreatorId){
+            const postCreatorObject= await _db.collection('userInfo').findOne({userid:postCreatorId})
             const creatorEmail=postCreatorObject.email
             try{
                 const points=1; //points for reward
                 const userid1=firebaseuserid; 
-                const userid2=creatorId
+                const userid2=postCreatorId
                 const type='credit' //type of reward
                 const reward={
                     type,
@@ -329,10 +354,26 @@ const updateComment= async (req,res)=>{
 const deleteComment=async (req,res)=>{
     const postId=new ObjectId(req.params.id);
     const commentId=new ObjectId(req.params.commentid);
+    const commentatorId=req.firebaseuserid //becasue the execution only gets to this function if the user requesting deletion of comment is the commentator
     try{
+        const commentObject= await _db.collection('comments').findOne({_id:commentId});
+        const postCreatorId=commentObject.creatorid;
         await _db.collection('comments').deleteOne({_id:commentId,postid:postId});
-        await _db.collection('comments').deleteMany({parentcommentid:commentId})
-        return res.status(200).json({message:"Comment deleted Succefully"})
+        await _db.collection('comments').deleteMany({parentcommentid:commentId}) //this deletes the whole comment tree where the present comment with given commentid is the root
+        //but the commentators get to keep those rewards - because they are not the one deleting 
+        try{
+            const type='debit',points=1,userid1=commentatorId,userid2=postCreatorId
+            const reward={
+                type,points,userid1,userid2
+            }
+            await sendToWorkerQueue(rewardQueue,reward);
+            return res.status(200).json({message:"Comment deleted Succefully - Reward Debited"})
+            
+        }
+        catch(error){
+            console.log(error);
+            return res.status(200).json({message:"Comment deleted Succesfully - Reward service is down at the moment"})
+        }
     }
     catch(error){
         console.log(error);
