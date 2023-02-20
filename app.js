@@ -12,7 +12,7 @@ const PORT=process.env.PORT || 3000
 app.use(express.json())
 app.use('/api/auth',authRouter);
 app.use('/api/posts',postRouter);
-app.use('/api/user',userRouter)
+app.use('/api/users',userRouter)
 app.use('/api/groups',groupRouter);
 
 //start the express app

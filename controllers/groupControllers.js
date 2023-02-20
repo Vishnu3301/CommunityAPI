@@ -1,10 +1,10 @@
 const { ObjectId } = require('mongodb');
 const {getClient}=require('../db')
+const {sendToWorkerQueue}=require('../rabbitmq/publisher')
 const client=getClient();
-const _db=client.db('Communityapi');
 const path = require('path')
 require('dotenv').config({ path: path.resolve(__dirname, '../.env') })
-const {sendToWorkerQueue}=require('../rabbitmq/publisher')
+const _db=client.db(process.env.DBNAME);
 
 const createGroup = async (req,res)=>{
     try{

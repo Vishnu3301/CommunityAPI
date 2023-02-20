@@ -4,9 +4,10 @@
 const amqp=require('amqplib')
 const path = require('path')
 require('dotenv').config({ path: path.resolve(__dirname, '../.env') })
+const {logger}=require('../utils/logger')
 const {getClient}=require('../db')
 const client=getClient();
-const _db=client.db('Communityapi')
+const _db=client.db(process.env.DBNAME)
 
 async function rewardTwoUsers(type,userid1,userid2,points){
     try{
@@ -21,6 +22,10 @@ async function rewardTwoUsers(type,userid1,userid2,points){
             upsert:true
         })
         console.log(`Reward ${type}ed to both users`)
+        // const user1Doc=await _db.collection('userInfo').findOne({userid:userid1})
+        // const user2Doc=await _db.collection('userInfo').findOne({userid:userid2})
+        // const username1=user1Doc.username,username2=user2Doc.username
+        logger.info(`Reward of type - ${type} and points - ${points} is processed for two users`)
     }
     catch(error){
         return error
@@ -35,6 +40,9 @@ async function rewardOneUser(type,userid1,points){
             upsert:true
         })
         console.log(`Reward ${type}ed to the user`)
+        const user1Doc=await _db.collection('userInfo').findOne({userid:userid1})
+        const username1=user1Doc.username
+        logger.info(`Reward of type - ${type} and points - ${points} is processed for one user`)
     }
     catch(error){
         return error

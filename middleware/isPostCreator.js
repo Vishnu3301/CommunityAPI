@@ -1,7 +1,7 @@
 const { ObjectId } = require('mongodb');
 const {getClient}=require('../db');
 const client=getClient();
-const _db=client.db('Communityapi');
+const _db=client.db(process.env.DBNAME);
 const isCreator=async (req,res,next)=>{
     const postId=new ObjectId(req.params.id); //get the post id passed in parameters
     const firebaseuserid=req.firebaseuserid

@@ -1,8 +1,8 @@
 const {getClient}=require('../db');
 const client=getClient();
-const _db=client.db('Communityapi');
 const path = require('path')
 require('dotenv').config({ path: path.resolve(__dirname, '../.env') })
+const _db=client.db(process.env.DBNAME);
 const {ObjectId}=require('mongodb')
 const {sendToWorkerQueue}=require('../rabbitmq/publisher')
 const mailQueue=process.env.MAILINGQUEUE

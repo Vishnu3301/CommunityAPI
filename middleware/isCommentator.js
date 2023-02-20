@@ -1,7 +1,7 @@
 const { ObjectId } = require('mongodb');
 const {getClient}=require('../db');
 const client=getClient();
-const _db=client.db('Communityapi');
+const _db=client.db(process.env.DBNAME);
 const isCommentator=async (req,res,next)=>{
     const commentId=new ObjectId(req.params.commentid)
     const firebaseuserid=req.firebaseuserid 

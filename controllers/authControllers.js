@@ -4,10 +4,10 @@ require('dotenv').config({path:path.resolve(__dirname+'../.env')})
 const key=process.env.SECRETKEY //secret key to sign the payload for token
 //conneting to firebase for user authentication
 const {initializeApp}=require('firebase/app');
-const {getAuth,createUserWithEmailAndPassword, signInWithEmailAndPassword}=require('firebase/auth')
+const {getAuth,createUserWithEmailAndPassword, signInWithEmailAndPassword, /*updatePassword*/}=require('firebase/auth')
 const {getClient}=require('../db');
 const client=getClient();
-const _db=client.db('Communityapi');
+const _db=client.db(process.env.DBNAME);
 const firebaseConfig={
     apiKey: process.env.APIKEY,
     authDomain: process.env.AUTHDOMAIN,
@@ -77,6 +77,18 @@ const login = async (req,res)=>{
     }
 }
 
+// const resetPassword = async (req,res)=>{
+//     const {password:newPassword}=req.body;
+//     try{
+//         await updatePassword(user,newPassword);
+//         return res.status(200).json({message:"Password updated"})
+//     }
+//     catch(error){
+//         console.log(error);
+//         return res.status(501).json({message:"Can't Update your Password"})
+//     }
+// }
+
 module.exports={
-    signup,login
+    signup,login, /*resetPassword*/
 }
