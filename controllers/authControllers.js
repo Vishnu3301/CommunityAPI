@@ -4,8 +4,9 @@ require('dotenv').config({path:path.resolve(__dirname+'../.env')})
 const key=process.env.SECRETKEY //secret key to sign the payload for token
 //conneting to firebase for user authentication
 const {initializeApp}=require('firebase/app');
-const {getAuth,createUserWithEmailAndPassword, signInWithEmailAndPassword, /*updatePassword*/}=require('firebase/auth')
+const {getAuth,createUserWithEmailAndPassword, signInWithEmailAndPassword, sendPasswordResetEmail}=require('firebase/auth')
 const {getClient}=require('../db');
+const {User}=require('../utils/schemaValidator')
 const client=getClient();
 const _db=client.db(process.env.DBNAME);
 const firebaseConfig={
@@ -35,22 +36,35 @@ const signup = async (req,res)=>{
         else{
             const userInfo= await createUserWithEmailAndPassword(auth,email,password)
             const userId=userInfo.user.uid;
-            const userDetails={
-                name:name,
-                username:username,
-                email:email,
-                gender:gender,
-                profession:profession,
-                mobile:mobile,
-                location:location,
-                userid:userId,
-                createdAt:new Date()
-                
+            const validatedData= User.safeParse(req.body);
+            if(validatedData.success){
+                const userDetails={
+                    name:name,
+                    username:username,
+                    email:email,
+                    gender:gender,
+                    profession:profession,
+                    mobile:mobile,
+                    location:location,
+                    userid:userId,
+                    createdAt:new Date()
+                    
+                }
+                //store user profile in mongodb
+                await _db.collection('userInfo').insertOne(userDetails);
+                const token=jwt.sign({firebaseuserid:userId,email:email},key);
+                return res.status(200).json({message:"SignedUp successfully",token:token});
             }
-            //store user profile in mongodb
-            await _db.collection('userInfo').insertOne(userDetails);
-            const token=jwt.sign({firebaseuserid:userId,email:email},key);
-            return res.status(200).json({message:"SignedUp successfully",token:token});
+            else{
+                //zod validation falied
+                const errors=validatedData.error.issues;
+                const errorMessages=errors.map(data=>{
+                    return `${data.path[0]} : ${data.message}`
+                })
+                const message={"Error":"Invalid Input","Errors":errorMessages}
+                return res.status(400).json(message)
+            }
+
         }
     }
     catch(error){
@@ -77,18 +91,18 @@ const login = async (req,res)=>{
     }
 }
 
-// const resetPassword = async (req,res)=>{
-//     const {password:newPassword}=req.body;
-//     try{
-//         await updatePassword(user,newPassword);
-//         return res.status(200).json({message:"Password updated"})
-//     }
-//     catch(error){
-//         console.log(error);
-//         return res.status(501).json({message:"Can't Update your Password"})
-//     }
-// }
+const resetPassword= async (req,res)=>{
+    const email=req.email
+    try{
+        await sendPasswordResetEmail(auth,email);
+        return res.status(200).json({message:"Password reset link has been mailed to you"})
+    }
+    catch(error){
+        console.log(error);
+        return res.status(500).json({message:"Can't Send mail to reset password at the moment"})
+    }
+}
 
 module.exports={
-    signup,login, /*resetPassword*/
+    signup,login,resetPassword
 }

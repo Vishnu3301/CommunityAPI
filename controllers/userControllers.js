@@ -248,4 +248,13 @@ const getFollowers= async (req,res)=>{
     }
 }
 
-module.exports ={ getUser,followUser,unfollowUser,updateUser,getfollowerCount,getStats,myDetails,getFollowers};
+
+const updateDisplayPicture = async (req,res)=>{
+
+}
+
+const updateBackgroundPicture = async (req,res)=>{
+
+}
+
+module.exports ={ getUser,followUser,unfollowUser,updateUser,getfollowerCount,getStats,myDetails,getFollowers,updateDisplayPicture, updateBackgroundPicture};

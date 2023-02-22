@@ -262,5 +262,13 @@ const updateGroup = async (req,res)=>{
 }
 
 
+const updateDisplayPicture = async (req,res)=>{
+
+}
+
+const updateBackgroundPicture = async (req,res)=>{
+
+}
+
 module.exports = { createGroup,updateGroup,getAllGroups,deleteGroup,fetchStats,createPost,
-    joinGroup,leaveGroup,fetchMembers,getTimeline }
+    joinGroup,leaveGroup,fetchMembers,getTimeline, updateDisplayPicture,updateBackgroundPicture}

@@ -38,6 +38,8 @@ const getMyposts= async (req,res)=>{
 
 const getTimeline = async (req,res)=>{
     //to be implemented
+    //for timeline, fetch posts made by followers and the posts from groups they are in
+    //make posts 
 }
 
 //creating post by this method means  the post is public and can be viewed by anyone
@@ -484,8 +486,12 @@ const replyComment= async (req,res)=>{
 }
 
 
+const attachFiles = async (req,res)=>{
+
+}
+
 module.exports={
     getMyposts,createPost,updatePost,deletePost,getTimeline,makeInvisible,
     makeVisible,likePost,unlikePost,getComments,addComment,updateComment,deleteComment,likeComment,
-    replyComment,unlikeComment
+    replyComment,unlikeComment,attachFiles
 }
