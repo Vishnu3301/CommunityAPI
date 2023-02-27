@@ -1,7 +1,8 @@
 const express=require('express');
 const userRouter=express.Router();
 const {isLoggedin} = require('../middleware/isAuthenticated');
-const {getUser,getfollowerCount,myDetails,getStats,followUser,unfollowUser,updateUser, getFollowers}=require('../controllers/userControllers')
+const {getUser,getfollowerCount,myDetails,getStats,followUser,unfollowUser,updateUser, getFollowers, updateDisplayPicture, updateBackgroundPicture}=require('../controllers/userControllers');
+const { multerImageUploader } = require('../utils/multerUploader');
 
 userRouter.get('/self',isLoggedin,myDetails); //get the current users details
 userRouter.get('/:username/followers',isLoggedin,getFollowers) //get all the followers of the user with the given username
@@ -11,6 +12,7 @@ userRouter.put('/self',isLoggedin,updateUser); //update the details of current u
 userRouter.get('/:username/stats',isLoggedin,getStats); //fetch a user's posts,comments, likes count
 userRouter.put('/:username/follow',isLoggedin,followUser); //follow a user
 userRouter.delete('/:username/follow',isLoggedin,unfollowUser); //unfollow a user
-
+userRouter.put('/self/updatedp',isLoggedin,multerImageUploader,updateDisplayPicture); //update users dp
+userRouter.put('/self/updatebg',isLoggedin,multerImageUploader,updateBackgroundPicture) //update users bg
 
 module.exports = {userRouter}

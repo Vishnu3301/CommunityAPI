@@ -2,7 +2,8 @@ const { ObjectId } = require('mongodb');
 const {getClient}=require('../db')
 const {sendToWorkerQueue}=require('../rabbitmq/publisher')
 const client=getClient();
-const path = require('path')
+const path = require('path');
+const { cloudinary } = require('../utils/cloudinary');
 require('dotenv').config({ path: path.resolve(__dirname, '../.env') })
 const _db=client.db(process.env.DBNAME);
 
@@ -263,10 +264,49 @@ const updateGroup = async (req,res)=>{
 
 
 const updateDisplayPicture = async (req,res)=>{
-
+    try{
+        const data= await cloudinary.uploader.upload(req.file.path,{
+            folder:process.env.PROFILEPICSFOLDER,
+            use_filename:true
+        });
+        const groupid= ObjectId(req.params.id);
+        const updatedFields={
+            displaypic:data.secure_url,
+            updatedAt:new Date()
+        }
+        await _db.collection('groups').updateOne({_id:groupid},
+            {
+                $set:updatedFields
+            })
+        return res.status(200).json({message:"Display picture updated"})
+    }
+    catch(error){
+        console.log(error);
+        return res.status(501).json({message:"Can't update display picture at the moment"})
+    }
 }
 
 const updateBackgroundPicture = async (req,res)=>{
+    try{
+        const data= await cloudinary.uploader.upload(req.file.path,{
+            folder:process.env.PROFILEPICSFOLDER,
+            use_filename:true
+        });
+        const groupid= ObjectId(req.params.id);
+        const updatedFields={
+            backgroundpic:data.secure_url,
+            updatedAt:new Date()
+        }
+        await _db.collection('groups').updateOne({_id:groupid},
+        {
+            $set:updatedFields
+        })
+        return res.status(200).json({message:"Background picture updated"})
+    }
+    catch(error){
+        console.log(error);
+        return res.status(501).json("Can't update Background picture at the moment")
+    }
 
 }
 

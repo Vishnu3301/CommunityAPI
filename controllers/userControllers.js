@@ -4,7 +4,9 @@ const path = require('path')
 require('dotenv').config({ path: path.resolve(__dirname, '../.env') })
 const _db=client.db(process.env.DBNAME);
 const {ObjectId}=require('mongodb')
-const {sendToWorkerQueue}=require('../rabbitmq/publisher')
+const {sendToWorkerQueue}=require('../rabbitmq/publisher');
+const { error } = require('console');
+const { cloudinary } = require('../utils/cloudinary');
 const mailQueue=process.env.MAILINGQUEUE
 const rewardQueue=process.env.REWARDQUEUE;
 const getUser = async (req,res)=>{
@@ -250,11 +252,51 @@ const getFollowers= async (req,res)=>{
 
 
 const updateDisplayPicture = async (req,res)=>{
+    try{
+        const data= await cloudinary.uploader.upload(req.file.path,{
+            folder:process.env.PROFILEPICSFOLDER,
+            use_filename:true
+        })
+        const groupid=ObjectId(req.params.id);
+        const updatedFields={
+            displaypic:data.secure_url,
+            updatedAt:new Date()
+        }
+        const firebaseuserid=req.firebaseuserid
+        await _db.collection('userInfo').updateOne({userid:firebaseuserid},{
+            $set:updatedFields
+        });
+        return res.status(200).json({message:"Display picture updated"})
 
+    }
+    catch(error){
+        console.log(error);
+        return res.status(501).json({"message":"Cant Update Display picture at the moment"})
+    }
 }
 
 const updateBackgroundPicture = async (req,res)=>{
+    try{
+        const data= await cloudinary.uploader.upload(req.file.path,{
+            folder:process.env.PROFILEPICSFOLDER,
+            use_filename:true
+        })
+        const groupid=ObjectId(req.params.id);
+        const updatedFields={
+            backgroundpic:data.secure_url,
+            updatedAt:new Date()
+        }
+        const firebaseuserid=req.firebaseuserid
+        await _db.collection('userInfo').updateOne({userid:firebaseuserid},{
+            $set:updatedFields
+        });
+        return res.status(200).json({message:"Background picture updated"})
 
+    }
+    catch(error){
+        console.log(error);
+        return res.status(501).json({"message":"Cant update  Background  picture at the moment"})
+    }
 }
 
 module.exports ={ getUser,followUser,unfollowUser,updateUser,getfollowerCount,getStats,myDetails,getFollowers,updateDisplayPicture, updateBackgroundPicture};
