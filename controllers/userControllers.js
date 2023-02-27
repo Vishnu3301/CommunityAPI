@@ -257,7 +257,6 @@ const updateDisplayPicture = async (req,res)=>{
             folder:process.env.PROFILEPICSFOLDER,
             use_filename:true
         })
-        const groupid=ObjectId(req.params.id);
         const updatedFields={
             displaypic:data.secure_url,
             updatedAt:new Date()
@@ -281,7 +280,6 @@ const updateBackgroundPicture = async (req,res)=>{
             folder:process.env.PROFILEPICSFOLDER,
             use_filename:true
         })
-        const groupid=ObjectId(req.params.id);
         const updatedFields={
             backgroundpic:data.secure_url,
             updatedAt:new Date()
