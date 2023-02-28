@@ -2,9 +2,10 @@ const express=require('express');
 const postRouter=express.Router();
 const {isLoggedin}=require('../middleware/isAuthenticated');
 const {getMyposts,createPost,getTimeline,updatePost,deletePost,makeInvisible, makeVisible, likePost, 
-    unlikePost,getComments,addComment,updateComment,deleteComment,likeComment,replyComment,unlikeComment}=require('../controllers/postControllers')
+    unlikePost,getComments,addComment,updateComment,deleteComment,likeComment,replyComment,unlikeComment, attachFiles}=require('../controllers/postControllers')
 const {isCreator}=require('../middleware/isPostCreator')
-const {isCommentator}=require('../middleware/isCommentator')
+const {isCommentator}=require('../middleware/isCommentator');
+const { multerAttachmentFileUploader } = require('../utils/multerUploader');
 
 postRouter.get('/',isLoggedin,getMyposts); //get all the posts of the current logged in user
 postRouter.get('/timeline',isLoggedin,getTimeline); //get the timeline posts of the current logged in user
@@ -15,10 +16,11 @@ postRouter.put('/:id/visible',isLoggedin,isCreator,makeVisible); //make the post
 postRouter.delete('/:id/visible',isLoggedin,isCreator,makeInvisible);//make the post invisible
 postRouter.put('/:id/like',isLoggedin,likePost); //like a post
 postRouter.delete('/:id/like',isLoggedin,unlikePost); //unlike post
+postRouter.put('/:id/attatch',isLoggedin,isCreator,multerAttachmentFileUploader,attachFiles) //attach files to a post
 
 //comment routes
 postRouter.get('/:id/comments',isLoggedin,getComments) //get all comments on that post with pagination 
-postRouter.post('/:id/comment',isLoggedin,addComment) //comment on that post 
+postRouter.post('/:id/comments',isLoggedin,addComment) //comment on that post 
 postRouter.post('/:id/comments/:commentid/reply',isLoggedin,replyComment) //reply to a specific comment
 postRouter.put('/:id/comments/:commentid',isLoggedin,isCommentator,updateComment) //update a specific comment 
 postRouter.delete('/:id/comments/:commentid',isLoggedin,isCommentator,deleteComment) //delete a comment 

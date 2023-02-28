@@ -42,7 +42,7 @@ const attachmentFilesUploader= multer({
 function multerImageUploader(req,res,next){
     imageUploader(req,res,function(err){
         if(err instanceof MulterError){
-            return res.status(400).json("UnSupported File format for image")
+            return res.status(400).json({message:"Unsupported image format - from multeruploader"})
         }
         else if(err){
             return res.status(501).json({"message":"Server side error - Can't upload image at the moment"})
@@ -54,7 +54,7 @@ function multerImageUploader(req,res,next){
 function multerAttachmentFileUploader(req,res,next){
     attachmentFilesUploader(req,res,function(err){
         if(err instanceof MulterError){
-            return res.status(400).json("UnSupported File format for attatchement File")
+            return res.status(400).json({message:"Unsupported file format - from multeruploader"})
         }
         else if(err){
             return res.status(501).json({"message":"Server side error - Can't attatch file  at the moment"})

@@ -3,7 +3,8 @@ const client=getClient();
 const path = require('path')
 require('dotenv').config({ path: path.resolve(__dirname, '../.env') })
 const {ObjectId}=require('mongodb');
-const {sendToWorkerQueue}=require('../rabbitmq/publisher')
+const {sendToWorkerQueue}=require('../rabbitmq/publisher');
+const { cloudinary } = require('../utils/cloudinary');
 const _db=client.db(process.env.DBNAME);
 const mailQueue=process.env.MAILINGQUEUE
 const rewardQueue=process.env.REWARDQUEUE;
@@ -58,6 +59,7 @@ const createPost = async (req,res)=>{
         if(title && description){
             const userObject= await _db.collection('userInfo').findOne({userid:firebaseuserid});
             const username=userObject.username
+            const newPostcreatedAt=new Date();
             await _db.collection('posts').insertOne({
                 title,
                 description,
@@ -65,12 +67,37 @@ const createPost = async (req,res)=>{
                 visible,
                 username,
                 ingroup:false,
-                createdAt:new Date()
+                createdAt:newPostcreatedAt
             })
             try{
+                let points=3;
+                const previousPostObject= await _db.collection('posts').aggregate([
+                    {
+                        $match:{creatorid:firebaseuserid}
+                    },
+                    {
+                        $sort:{createdAt:-1}
+                    },
+                    {
+                        $skip:1
+                    },
+                    {
+                        $limit:1
+                    }
+                ]).toArray();
+                if(previousPostObject.length!==0){
+                    const lastPostedTime=previousPostObject[0].createdAt.getTime();
+                    const present=newPostcreatedAt.getTime();
+                    const differenceInMs=present-lastPostedTime //difference of time in ms between the present post and last created post
+                    const seconds=Math.abs((differenceInMs)/1000);
+                    const hrs=Math.round(seconds/(3600));
+                    if(hrs<24 && differenceInMs > 1000){
+                        points= points+1; //reward the users an extra point if they post more than once in 24 hrs
+                    }
+                }
                 const data={
                     type:'credit',
-                    points:3,
+                    points:points,
                     userid1:firebaseuserid
                 }
                 await sendToWorkerQueue(rewardQueue,data)
@@ -487,7 +514,26 @@ const replyComment= async (req,res)=>{
 
 
 const attachFiles = async (req,res)=>{
-
+    const postId=ObjectId(req.params.id);
+    try{
+        const data= await cloudinary.uploader.upload(req.file.path,{
+            folder:process.env.ATTATCHMENTFILESFOLDER,
+            use_filename:true
+        })
+        const url=data.secure_url
+        const newElement={
+            url,
+            createdAt:new Date()
+        }
+        await _db.collection('posts').updateOne({_id:postId},{
+            $push:{ files: newElement}
+        })
+        return res.status(200).json({message:"File attatched"})
+    }
+    catch(err){
+        console.log(err);
+        return res.status(501).json({message:"Can't attach file to the post at the moment, Check file extension or try again"})
+    }
 }
 
 module.exports={
