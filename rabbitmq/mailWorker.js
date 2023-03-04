@@ -15,11 +15,12 @@ async function consumeMessages(){
         transport.sendMail(mailOptions)
         .then(res=>{
             console.log("Mail sent to ",to);
+            channel.ack(msg)
         })
         .catch(error=>{
             console.log(error)
         })
-        channel.ack(msg)
+        
     },{noAck:false})
 }
 

@@ -29,10 +29,14 @@ async function consumeMessages(){
             const userObject=await _db.collection('userInfo').findOne({userid:firebaseuserid})
             const username=userObject.username
             let text=`${username} just created a post`
-            mailOptions={...mailOptions,to:toEmails,text}
+            mailOptions={...mailOptions,text}
             try{
-                await transport.sendMail(mailOptions)
-                console.log(`Mail sent to followers`)
+                toEmails.forEach(async (mail)=>{
+                    let useCaseMailOptions={...mailOptions,to:mail}
+                    await transport.sendMail(useCaseMailOptions)
+                    console.log(`(BulkMail) Mail sent to ${mail}`)
+                })
+                channel.ack(msg)
             }
             catch(error){
                 console.log(error)
@@ -41,7 +45,6 @@ async function consumeMessages(){
         else{
             console.log("NO followers")
         }
-        channel.ack(msg)
     },{noAck:false})
 }
 
