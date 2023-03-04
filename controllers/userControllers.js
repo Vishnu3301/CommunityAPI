@@ -44,10 +44,12 @@ const followUser = async (req,res)=>{
                 }
                 else{
                     const followerObject=await _db.collection('userInfo').findOne({userid:followerid});
+                    const followerEmail=req.email;
                     await _db.collection('follows').insertOne({
                         followerid:followerid, //this user requested to follow the below user
                         followedid:guestUserId, //this user gains a follower
                         follwerusername:followerObject.username,
+                        followeremail:followerEmail,
                         followedAt:new Date()
                     })
                     const guestUserObject=await _db.collection('userInfo').findOne({userid:guestUserId});

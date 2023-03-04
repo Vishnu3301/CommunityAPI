@@ -8,6 +8,7 @@ const { cloudinary } = require('../utils/cloudinary');
 const _db=client.db(process.env.DBNAME);
 const mailQueue=process.env.MAILINGQUEUE
 const rewardQueue=process.env.REWARDQUEUE;
+const bulkMailQueue=process.env.BULKMAILINGQUEUE;
 const getMyposts= async (req,res)=>{
     const firebaseuserid=req.firebaseuserid;
     try{
@@ -95,17 +96,22 @@ const createPost = async (req,res)=>{
                         points= points+1; //reward the users an extra point if they post more than once in 24 hrs
                     }
                 }
-                const data={
+                const reward={
                     type:'credit',
                     points:points,
                     userid1:firebaseuserid
                 }
-                await sendToWorkerQueue(rewardQueue,data)
-                return res.status(200).json({"message":"post created succesfully"})
+                await sendToWorkerQueue(rewardQueue,reward)
+                //bulk mailing service - send mail to all the post creators followers
+                const data={
+                    creatorid:firebaseuserid
+                }
+                await sendToWorkerQueue(bulkMailQueue,data)
+                return res.status(200).json({"message":"Post created succesfully"})
             }
             catch(error){
                 console.log(error);
-                return res.status(200).json({message:"Post created - Reward service is down at the moment"})
+                return res.status(200).json({message:"Post created - Reward/mail service is down at the moment"})
             }
         }
         else{
