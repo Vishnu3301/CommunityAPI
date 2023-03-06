@@ -19,7 +19,7 @@ const imageUploader= multer({
     fileFilter: (req,file,cb)=>{
         let ext=path.extname(file.originalname);
         if(!imageExtensions.includes(ext)){
-            cb(new MulterError(400,'UnSupported File Extension for  image'),false)
+            cb(new MulterError(400,'UnSupported File Extension for an image'),false)
         }
         cb(null,true)
     }

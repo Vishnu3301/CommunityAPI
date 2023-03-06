@@ -43,7 +43,7 @@ async function consumeMessages(){
             }
         }
         else{
-            console.log("NO followers")
+            console.log("No followers")
         }
     },{noAck:false})
 }

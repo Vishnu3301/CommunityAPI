@@ -26,7 +26,7 @@ const createGroup = async (req,res)=>{
             const username=userObject.username
             await _db.collection('groupmembers').insertOne({
                 username,
-                userid:firebaseuserid,
+                memberid:firebaseuserid,
                 groupid:insertedGroupId,
                 joinedAt:new Date()
             })
@@ -158,7 +158,7 @@ const joinGroup = async (req,res)=>{
     try{
         const groupid=ObjectId(req.params.id);
         const firebaseuserid=req.firebaseuserid
-        const alreadyMember= await _db.collection('groupmembers').findOne({userid:firebaseuserid,groupid:groupid});
+        const alreadyMember= await _db.collection('groupmembers').findOne({memberid:firebaseuserid,groupid:groupid});
         if(alreadyMember){
             return res.status(403).json({message:"You are already a member of this group"})
         }
@@ -167,7 +167,7 @@ const joinGroup = async (req,res)=>{
             const username=userObject.username
             await _db.collection('groupmembers').insertOne({
                 username,
-                userid:firebaseuserid,
+                memberid:firebaseuserid,
                 groupid:groupid,
                 joinedAt:new Date()
             })
@@ -185,12 +185,12 @@ const leaveGroup = async (req,res)=>{
         const firebaseuserid=req.firebaseuserid
         const groupid=ObjectId(req.params.id);
         const isMember=await _db.collection('groupmembers').findOne({
-            userid:firebaseuserid,
+            memberid:firebaseuserid,
             groupid:groupid
         })
         if(isMember){
             await _db.collection('groupmembers').deleteOne({
-                userid:firebaseuserid,
+                memberid:firebaseuserid,
                 groupid:groupid
             })
             return res.status(200).json({message:"You have now left the group"})

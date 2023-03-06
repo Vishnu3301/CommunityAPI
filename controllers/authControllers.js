@@ -1,12 +1,12 @@
 const jwt=require('jsonwebtoken'); //jwt for api security
 const path=require('path')
 require('dotenv').config({path:path.resolve(__dirname+'../.env')})
-const key=process.env.SECRETKEY //secret key to sign the payload for token
+const key=process.env.SECRETKEY //secret key to sign the payload for jwt 
 //conneting to firebase for user authentication
 const {initializeApp}=require('firebase/app');
 const {getAuth,createUserWithEmailAndPassword, signInWithEmailAndPassword, sendPasswordResetEmail}=require('firebase/auth')
 const {getClient}=require('../db');
-const {User}=require('../utils/schemaValidator')
+const {userSignup,userLogin}=require('../utils/schemaValidator')
 const client=getClient();
 const _db=client.db(process.env.DBNAME);
 const firebaseConfig={
@@ -27,7 +27,7 @@ const signup = async (req,res)=>{
     const {name,gender,profession,mobile,location,email,password,username}=req.body;
     try{
         if(!username){
-            return res.status(422).json({message:"missing username"});
+            return res.status(422).json({message:"Missing username"});
         }
         const foundUser= await _db.collection('userInfo').findOne({username:username});
         if(foundUser){
@@ -36,7 +36,7 @@ const signup = async (req,res)=>{
         else{
             const userInfo= await createUserWithEmailAndPassword(auth,email,password)
             const userId=userInfo.user.uid;
-            const validatedData= User.safeParse(req.body);
+            const validatedData= userSignup.safeParse(req.body);
             if(validatedData.success){
                 const userDetails={
                     name:name,
@@ -78,16 +78,28 @@ const signup = async (req,res)=>{
 
 //login controller
 const login = async (req,res)=>{
-    const {email,password}=req.body;
-    try{
-        const userInfo=await signInWithEmailAndPassword(auth,email,password);
-        const userId=userInfo.user.uid
-        const token= jwt.sign({firebaseuserid:userId,email:email},key)
-        return res.status(200).send({message:"signed in succesfully",token:token});
+    const validatedData=userLogin.safeParse(req.body);
+    if(validatedData.success){
+        try{
+            const {email,password}=req.body
+            const userInfo=await signInWithEmailAndPassword(auth,email,password);
+            const userId=userInfo.user.uid
+            const token= jwt.sign({firebaseuserid:userId,email:email},key)
+            return res.status(200).send({message:"signed in succesfully",token:token});
+        }
+        catch(error){
+            console.log(error);
+            return res.status(401).json({message:`${error.code.slice(5)}`})
+        }
     }
-    catch(error){
-        console.log(error);
-        return res.status(401).json({message:`${error.code.slice(5)}`})
+    else{
+        //zod validation errors
+        const errors=validatedData.error.issues;
+        const errorMessages=errors.map(data=>{
+            return `${data.path[0]} : ${data.message}`
+        })
+        const message={"Error":"Invalid Input","Errors":errorMessages}
+        return res.status(400).json(message)
     }
 }
 

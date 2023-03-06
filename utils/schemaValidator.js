@@ -1,6 +1,6 @@
 const {z}=require('zod');
 const {generateErrorMessage}=require('zod-error')
-const User= z.object({
+const userSignup= z.object({
     name: z.string(),
     username: z.string(),
     email: z.string().email(),
@@ -10,4 +10,9 @@ const User= z.object({
     location: z.string().nullable().optional()
 })
 
-module.exports= {User}
+const userLogin= z.object({
+    email: z.string().email(),
+    password: z.string().min(6)
+}).strict()
+
+module.exports= {userSignup,userLogin}

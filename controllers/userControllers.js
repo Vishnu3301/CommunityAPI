@@ -185,13 +185,14 @@ const getStats= async (req,res)=>{
             const postsCount= await _db.collection('posts').countDocuments({creatorid:firebaseuserid}); //the total number of posts user created
             const likesCount= await _db.collection('postlikes').countDocuments({creatorid:firebaseuserid}); //the total likes user got over all his posts combined
             const commentsCount = await _db.collection('comments').countDocuments({commentatorid:firebaseuserid}); //the total number of comments the user made
-            const rewardObject = await _db.collection('rewards').findOne({userid:firebaseuserid})
+            const rewardObject = await _db.collection('rewards').findOne({userid:firebaseuserid}); //get the rewards for the user
+            const followers= await _db.collection('follows').countDocuments({followedid:firebaseuserid}) // get the followers count of the user
             let rewards=0;
             if(rewardObject){
                 rewards=rewardObject.points
             }
             const data={
-                postsCount,likesCount,commentsCount,rewards
+                postsCount,likesCount,commentsCount,rewards,followers
             }
             return res.status(200).json(data);
         }
@@ -201,7 +202,7 @@ const getStats= async (req,res)=>{
     }
     catch(error){
         console.log(error);
-        return res.status(501).json({message:"Could not find the number of stats - Server error"});
+        return res.status(501).json({message:"Could not find the stats of the user"});
     }
 }
 

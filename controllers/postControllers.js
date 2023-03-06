@@ -5,6 +5,7 @@ require('dotenv').config({ path: path.resolve(__dirname, '../.env') })
 const {ObjectId}=require('mongodb');
 const {sendToWorkerQueue}=require('../rabbitmq/publisher');
 const { cloudinary } = require('../utils/cloudinary');
+const { match } = require('assert');
 const _db=client.db(process.env.DBNAME);
 const mailQueue=process.env.MAILINGQUEUE
 const rewardQueue=process.env.REWARDQUEUE;
@@ -12,24 +13,23 @@ const bulkMailQueue=process.env.BULKMAILINGQUEUE;
 const getMyposts= async (req,res)=>{
     const firebaseuserid=req.firebaseuserid;
     try{
-        //sorting to be implemented
         const {page=1,limit:postsPerPage=5} = req.query
         const posts= await _db.collection('posts').aggregate([{
             $match:{ creatorid: firebaseuserid,visible:true}
-        },
-        {
-            $sort:{createdAt:-1} //for now the default sorting is  by created date -desc
-        },
-        {
-            $skip:parseInt((page-1)*postsPerPage)
-        },
-        {
-            $limit:parseInt(postsPerPage)
-        },
-        {
-            $project:{_id:0,title:1,description:1}
-        }
-    ]).toArray();
+            },
+            {
+                $sort:{createdAt:-1}
+            },
+            {
+                $skip:parseInt((page-1)*postsPerPage)
+            },
+            {
+                $limit:parseInt(postsPerPage)
+            },
+            {
+                $project:{_id:0,title:1,description:1}
+            }
+        ]).toArray();
         return res.status(200).json(posts);
     }
     catch(error){
@@ -42,10 +42,88 @@ const getTimeline = async (req,res)=>{
     //to be implemented
     //for timeline, fetch posts made by followers and the posts from groups they are in
     //make posts 
+    const firebaseuserid=req.firebaseuserid;
+    //we need to apply two lookups
+    //one for the posts of the users the user if following and one for groups
+    //the limit per page would be 10 posts lets generate a random number between one to 10
+    //to limit the number of posts from each category and add it upto 10
+    const {page=1,limit:postsPerPage=10}=req.query
+    const followerPostsLimit=Math.floor((Math.random()*(postsPerPage-1)))+1;
+    const groupPostsLimit=parseInt(postsPerPage)-followerPostsLimit
+    try{
+        let followersPosts=await  _db.collection('follows').aggregate([
+           { $match:{followerid:firebaseuserid}},
+            {
+                $lookup:{
+                from:'posts',
+                localField:'followedid',
+                foreignField:'creatorid',
+                as:'followingPosts',
+                pipeline:[
+                    {$match:{visible:true,ingroup:false}},
+                    {$project:{_id:0,title:1,description:1,files:1,username:1}}
+                ]
+                 }
+            },
+            {
+               $unwind:'$followingPosts'
+           },
+            {
+                $sort:{"followingPosts.createdAt":-1}
+            },
+            {
+                $limit:parseInt(followerPostsLimit)
+            },
+            {
+                $project:{_id:0,followingPosts:1}
+            }
+        ]).toArray();
+        let groupPosts=await  _db.collection('groupmembers').aggregate([
+            { $match:{memberid:firebaseuserid}},
+             {
+                 $lookup:{
+                 from:'posts',
+                 localField:'groupid',
+                 foreignField:'groupid',
+                 as:'groupPosts',
+                 pipeline:[
+                    {$project:{_id:0,title:1,description:1,files:1,username:1}}
+                ]
+                }
+             },
+             {
+                 $unwind:'$groupPosts'
+             },
+             {
+                 $sort:{"groupPosts.createdAt":-1}
+             },
+             {
+                 $limit:parseInt(groupPostsLimit)
+             },
+             {
+                 $project:{_id:0,groupPosts:1}
+             }
+         ]).toArray();
+        //  console.log(followersPosts, groupPosts)
+        followersPosts=followersPosts.map(ele=>{
+            return ele.followingPosts
+        })
+        groupPosts=groupPosts.map(ele=>{
+            return ele.groupPosts
+        })
+        //the timeline posts are not sorted but are the most recent in random order
+        const timelinePosts=[...followersPosts,...groupPosts]
+        console.log(timelinePosts)
+        return res.status(200).json(timelinePosts)
+    }
+    catch(err){
+        console.log(err)
+        return res.status(501).json({message:"Can't fetch user timeline at the moment"})
+    }
 }
 
-//creating post by this method means  the post is public and can be viewed by anyone
-//add 3 points reward
+//default post visibility is true, that is posts are public, if the user sets visibility to false,
+// it won't get displayed or retrived
 const createPost = async (req,res)=>{
     const firebaseuserid=req.firebaseuserid;
     try{
@@ -86,6 +164,7 @@ const createPost = async (req,res)=>{
                         $limit:1
                     }
                 ]).toArray();
+                //logic to check if user has posted more than once in 24hrs and reward extra
                 if(previousPostObject.length!==0){
                     const lastPostedTime=previousPostObject[0].createdAt.getTime();
                     const present=newPostcreatedAt.getTime();
@@ -137,7 +216,7 @@ const updatePost = async (req,res)=>{
     }
     catch(error){
         console.log(error);
-        return res.status(501).json({message:"Couldnot update the post - Server side error"})
+        return res.status(501).json({message:"Couldn't update the post"})
     }
 }
 
@@ -162,12 +241,12 @@ const deletePost = async (req,res)=>{
         }
         catch(error){
             console.log(error);
-            return res.status(200).json({message:"You deleted the post - Reward service is down at the moment"})
+            return res.status(200).json({message:"You deleted the post - Debit service is down at the moment"})
         }
     }
     catch(error){
         console.log(error);
-        return res.status(501).json({message:"Can't delete the post - Server side error"});
+        return res.status(501).json({message:"Can't delete the post"});
     }
 }
 
@@ -175,12 +254,13 @@ const makeVisible = async (req,res)=>{
     const postId=new ObjectId(req.params.id);
     try{
         updatedFields={
-            visible:true
+            visible:true,
+            updatedAt:new Date()
         }
         await _db.collection('posts').findOneAndUpdate({_id:postId},{
             $set: updatedFields
         },{returnDocument:'after'});
-        return res.status(200).json({message:"Unarchived the post"});
+        return res.status(200).json({message:"You Unarchived the post"});
     }
     catch(error){
         console.log("error");
@@ -192,7 +272,8 @@ const makeInvisible = async (req,res)=>{
     const postId=new ObjectId(req.params.id);
     try{
         updatedFields={
-            visible:false
+            visible:false,
+            updatedAt:new Date()
         }
         await _db.collection('posts').findOneAndUpdate({_id:postId},{
             $set: updatedFields
@@ -290,7 +371,7 @@ const unlikePost= async (req,res)=>{
 const getComments=async (req,res)=>{
     const postId= new ObjectId(req.params.id);
     //for now , this gets all comments on the post (not the replies just the comments- parent comments)
-    //pagination and sort to be implemented
+    //pagination to be implemented
     try{
         const comments=await _db.collection('comments').aggregate([
             {
@@ -316,6 +397,9 @@ const addComment = async (req,res)=>{
     const firebaseuserid=req.firebaseuserid
     const postId=new ObjectId(req.params.id);
     const text=req.body.text
+    if(!text){
+        return res.status(400).json({message:"comment can't be empty string"})
+    }
     try{
         const userObject=await _db.collection('userInfo').findOne({userid:firebaseuserid});
         const username=userObject.username; //user name of the liker
