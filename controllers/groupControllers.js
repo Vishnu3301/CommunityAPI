@@ -3,11 +3,10 @@ const {getClient}=require('../db')
 const {sendToWorkerQueue}=require('../rabbitmq/publisher')
 const client=getClient();
 const path = require('path');
-const { cloudinary } = require('../utils/cloudinary');
 require('dotenv').config({ path: path.resolve(__dirname, '../.env') })
 const _db=client.db(process.env.DBNAME);
 const {ExpressError}=require('../utils/customErrorHandler')
-
+const {mybucket}=require('../utils/gcp')
 
 const createGroup = async (req,res)=>{
         const firebaseuserid=req.firebaseuserid
@@ -207,33 +206,37 @@ const updateDisplayPicture = async (req,res)=>{
     if(!req.file){
         throw new ExpressError("Missing file to upload",400);       
     }
-        const data= await cloudinary.uploader.upload(req.file.path,{
-            folder:process.env.PROFILEPICSFOLDER,
-            use_filename:true
-        });
-        const groupid= ObjectId(req.params.id);
-        const updatedFields={
-            displaypic:data.secure_url,
-            updatedAt:new Date()
-        }
-        await _db.collection('groups').updateOne({_id:groupid},
-            {
-                $set:updatedFields
-            })
-        return res.status(200).json({message:"Display picture updated"})
+    const options={
+        destination:req.file.filename, //name of the file with which we want our uploaded file to store with- basically the name of the file in bucket
+        preconditionOpts:{ifGenerationMatch:0}
+    }
+    const output=await mybucket.upload(req.file.path,options);
+    const publicURL=`https://storage.googleapis.com/${output[0].metadata.bucket}/${req.file.filename}`
+    const groupid= ObjectId(req.params.id);
+    const updatedFields={
+        displaypic:publicURL,
+        updatedAt:new Date()
+    }
+    await _db.collection('groups').updateOne({_id:groupid},
+        {
+            $set:updatedFields
+        })
+    return res.status(200).json({message:"Display picture updated"})
 }
 
 const updateBackgroundPicture = async (req,res)=>{
     if(!req.file){
         throw new ExpressError("Missing file to upload",400);
     }
-    const data= await cloudinary.uploader.upload(req.file.path,{
-        folder:process.env.PROFILEPICSFOLDER,
-        use_filename:true
-    });
+    const options={
+        destination:req.file.filename, //name of the file with which we want our uploaded file to store with- basically the name of the file in bucket
+        preconditionOpts:{ifGenerationMatch:0}
+    }
+    const output=await mybucket.upload(req.file.path,options);
+    const publicURL=`https://storage.googleapis.com/${output[0].metadata.bucket}/${req.file.filename}`
     const groupid= ObjectId(req.params.id);
     const updatedFields={
-        backgroundpic:data.secure_url,
+        backgroundpic:publicURL,
         updatedAt:new Date()
     }
     await _db.collection('groups').updateOne({_id:groupid},

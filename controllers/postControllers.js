@@ -4,13 +4,13 @@ const path = require('path')
 require('dotenv').config({ path: path.resolve(__dirname, '../.env') })
 const {ObjectId}=require('mongodb');
 const {sendToWorkerQueue}=require('../rabbitmq/publisher');
-const { cloudinary } = require('../utils/cloudinary');
 const { match } = require('assert');
 const _db=client.db(process.env.DBNAME);
 const mailQueue=process.env.MAILINGQUEUE
 const rewardQueue=process.env.REWARDQUEUE;
 const bulkMailQueue=process.env.BULKMAILINGQUEUE;
 const {ExpressError}=require('../utils/customErrorHandler')
+const {mybucket}=require('../utils/gcp')
 const getMyposts= async (req,res)=>{
     const firebaseuserid=req.firebaseuserid;
     const {page=1,limit:postsPerPage=5} = req.query
@@ -478,14 +478,14 @@ const attachFiles = async (req,res)=>{
     if(!req.file){
         throw new ExpressError("Missing file to attach to the post",400);
     }
-    const data= await cloudinary.uploader.upload(req.file.path,{
-        folder:process.env.ATTATCHMENTFILESFOLDER,
-        use_filename:true,
-        resource_type:'auto'
-    })
-    const url=data.secure_url
+    const options={
+        destination:req.file.filename, //name of the file with which we want our uploaded file to store with- basically the name of the file in bucket
+        preconditionOpts:{ifGenerationMatch:0}
+    }
+    const output=await mybucket.upload(req.file.path,options);
+    const publicURL=`https://storage.googleapis.com/${output[0].metadata.bucket}/${req.file.filename}`
     const newElement={
-        url,
+        url:publicURL,
         createdAt:new Date()
     }
     await _db.collection('posts').updateOne({_id:postId},{

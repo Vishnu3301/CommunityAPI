@@ -6,10 +6,12 @@ const _db=client.db(process.env.DBNAME);
 const {ObjectId}=require('mongodb')
 const {sendToWorkerQueue}=require('../rabbitmq/publisher');
 const { error } = require('console');
-const { cloudinary } = require('../utils/cloudinary');
+// const { cloudinary } = require('../utils/cloudinary');
 const mailQueue=process.env.MAILINGQUEUE
 const rewardQueue=process.env.REWARDQUEUE;
-const {ExpressError}=require('../utils/customErrorHandler')
+const {ExpressError}=require('../utils/customErrorHandler');
+const { mybucket } = require('../utils/gcp');
+
 const getUser = async (req,res)=>{
     const username=req.params.username;
     const userInfo= await _db.collection('userInfo').findOne({username:username})
@@ -194,12 +196,14 @@ const updateDisplayPicture = async (req,res)=>{
     if(!req.file){
         throw new ExpressError("Missing Image to set as display picture",400) 
     }
-    const data= await cloudinary.uploader.upload(req.file.path,{
-        folder:process.env.PROFILEPICSFOLDER,
-        use_filename:true
-    })
+    const options={
+        destination:req.file.filename, //name of the file with which we want our uploaded file to store with- basically the name of the file in bucket
+        preconditionOpts:{ifGenerationMatch:0}
+    }
+    const output=await mybucket.upload(req.file.path,options);
+    const publicURL=`https://storage.googleapis.com/${output[0].metadata.bucket}/${req.file.filename}`
     const updatedFields={
-        displaypic:data.secure_url,
+        displaypic:publicURL,
         updatedAt:new Date()
     }
     const firebaseuserid=req.firebaseuserid
@@ -213,12 +217,14 @@ const updateBackgroundPicture = async (req,res)=>{
     if(!req.file){
         throw new ExpressError("Missing Image to set as background picture",400) 
     }
-    const data= await cloudinary.uploader.upload(req.file.path,{
-        folder:process.env.PROFILEPICSFOLDER,
-        use_filename:true
-    })
+    const options={
+        destination:req.file.filename, //name of the file with which we want our uploaded file to store with- basically the name of the file in bucket
+        preconditionOpts:{ifGenerationMatch:0}
+    }
+    const output=await mybucket.upload(req.file.path,options);
+    const publicURL=`https://storage.googleapis.com/${output[0].metadata.bucket}/${req.file.filename}`
     const updatedFields={
-        backgroundpic:data.secure_url,
+        backgroundpic:publicURL,
         updatedAt:new Date()
     }
     const firebaseuserid=req.firebaseuserid
