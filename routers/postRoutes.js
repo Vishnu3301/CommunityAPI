@@ -6,25 +6,25 @@ const {getMyposts,createPost,getTimeline,updatePost,deletePost,makeInvisible, ma
 const {isCreator}=require('../middleware/isPostCreator')
 const {isCommentator}=require('../middleware/isCommentator');
 const { multerAttachmentFileUploader } = require('../utils/multerUploader');
-
-postRouter.get('/',isLoggedin,getMyposts); //get all the posts of the current logged in user
-postRouter.get('/timeline',isLoggedin,getTimeline); //get the timeline posts of the current logged in user
-postRouter.post('/',isLoggedin,createPost);  //create a post corresponding to the current logged in user
-postRouter.put('/:id',isLoggedin,isCreator,updatePost); //update the details of a specific post made by the current logged in user
-postRouter.delete('/:id',isLoggedin,isCreator,deletePost); //delete a specific post created by the current logged in user
-postRouter.put('/:id/visible',isLoggedin,isCreator,makeVisible); //make the post visible
-postRouter.delete('/:id/visible',isLoggedin,isCreator,makeInvisible);//make the post invisible
-postRouter.put('/:id/like',isLoggedin,likePost); //like a post
-postRouter.delete('/:id/like',isLoggedin,unlikePost); //unlike post
-postRouter.put('/:id/attatch',isLoggedin,isCreator,multerAttachmentFileUploader,attachFiles) //attach files to a post
+const {wrapAsync}=require('../utils/asyncErrorHandler')
+postRouter.get('/',isLoggedin,wrapAsync(getMyposts)); //get all the posts of the current logged in user
+postRouter.get('/timeline',isLoggedin,wrapAsync(getTimeline)); //get the timeline posts of the current logged in user
+postRouter.post('/',isLoggedin,wrapAsync(createPost));  //create a post corresponding to the current logged in user
+postRouter.put('/:id',isLoggedin,isCreator,wrapAsync(updatePost)); //update the details of a specific post made by the current logged in user
+postRouter.delete('/:id',isLoggedin,isCreator,wrapAsync(deletePost)); //delete a specific post created by the current logged in user
+postRouter.put('/:id/visible',isLoggedin,isCreator,wrapAsync(makeVisible)); //make the post visible
+postRouter.delete('/:id/visible',isLoggedin,isCreator,wrapAsync(makeInvisible));//make the post invisible
+postRouter.put('/:id/like',isLoggedin,wrapAsync(likePost)); //like a post
+postRouter.delete('/:id/like',isLoggedin,wrapAsync(unlikePost)); //unlike post
+postRouter.put('/:id/attatch',isLoggedin,isCreator,multerAttachmentFileUploader,wrapAsync(attachFiles)) //attach files to a post
 
 //comment routes
-postRouter.get('/:id/comments',isLoggedin,getComments) //get all comments on that post with pagination 
-postRouter.post('/:id/comments',isLoggedin,addComment) //comment on that post 
-postRouter.post('/:id/comments/:commentid/reply',isLoggedin,replyComment) //reply to a specific comment
-postRouter.put('/:id/comments/:commentid',isLoggedin,isCommentator,updateComment) //update a specific comment 
-postRouter.delete('/:id/comments/:commentid',isLoggedin,isCommentator,deleteComment) //delete a comment 
-postRouter.put('/:id/comments/:commentid/like',isLoggedin,likeComment) //like a comment 
-postRouter.delete('/:id/comments/:commentid/like',isLoggedin,unlikeComment)//unlike a comment 
+postRouter.get('/:id/comments',isLoggedin,wrapAsync(getComments)) //get all comments on that post with pagination 
+postRouter.post('/:id/comments',isLoggedin,wrapAsync(addComment)) //comment on that post 
+postRouter.post('/:id/comments/:commentid/reply',isLoggedin,wrapAsync(replyComment)) //reply to a specific comment
+postRouter.put('/:id/comments/:commentid',isLoggedin,isCommentator,wrapAsync(updateComment)) //update a specific comment 
+postRouter.delete('/:id/comments/:commentid',isLoggedin,isCommentator,wrapAsync(deleteComment)) //delete a comment 
+postRouter.put('/:id/comments/:commentid/like',isLoggedin,wrapAsync(likeComment)) //like a comment 
+postRouter.delete('/:id/comments/:commentid/like',isLoggedin,wrapAsync(unlikeComment))//unlike a comment 
 
 module.exports={postRouter}

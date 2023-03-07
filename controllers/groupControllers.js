@@ -6,9 +6,10 @@ const path = require('path');
 const { cloudinary } = require('../utils/cloudinary');
 require('dotenv').config({ path: path.resolve(__dirname, '../.env') })
 const _db=client.db(process.env.DBNAME);
+const {ExpressError}=require('../utils/customErrorHandler')
+
 
 const createGroup = async (req,res)=>{
-    try{
         const firebaseuserid=req.firebaseuserid
         const {name,bio}=req.body;
         if( name && bio){
@@ -33,18 +34,12 @@ const createGroup = async (req,res)=>{
             return res.status(200).json({message:"Group created Succesfully"})
         }
         else{
-            return res.status(400).json({message:"Insufficient details"})
+            throw new ExpressError("Can't create group, Insufficient Details",500)
         }
-    }
-    catch(error){
-        console.log(error);
-        return res.status(501).json({message:"Can't create group - Server side error"})
-    }
 }
 const getAllGroups = async (req,res)=>{
     //see if this needs pagination 
     //displays group name and bio
-    try{
         const allGroups= await _db.collection('groups').aggregate([
             {
                 $match:{}
@@ -54,16 +49,10 @@ const getAllGroups = async (req,res)=>{
             }
         ]).toArray()
         return res.status(200).json(allGroups)
-    }
-    catch(error){
-        console.log(error);
-        return res.status(501).json({message:"Can't get all the groups - Server side error"})
-    }
 }
 
 const deleteGroup = async (req,res)=>{
     //to be implemeneted completely
-    try{
         const firebaseuserid=req.firebaseuserid
         const groupid=ObjectId(req.params.id)
         //this become hectic we have to delete
@@ -78,16 +67,10 @@ const deleteGroup = async (req,res)=>{
         await _db.collection('comments').deleteMany({groupid:groupid}) //delete comments on the posts
         await _db.collection('commentlikes').deleteMany({groupid:groupid}) //delete likes to the comments
         return res.status(200).json({message:"Deleted the group and related info"})
-    }
-    catch(error){
-        console.log(error);
-        return res.status(501).json({message:"Can't delete the group - Server Side error"})
-    }
 }
 
 const fetchStats = async (req,res)=>{
     //return name,bio member count,post count of group
-    try{
         const groupid=ObjectId(req.params.id);
         const groupInfo=await _db.collection('groups').aggregate([
             {
@@ -108,15 +91,9 @@ const fetchStats = async (req,res)=>{
             members:memberCount,posts:postCount
         }
         return res.status(200).json(data);
-    }
-    catch(error){
-        console.log(error);
-        return res.status(501).json({message:"Can't get stats of this group - Server side error"})
-    }
 }
 
 const createPost = async (req,res)=>{
-    try{
         const firebaseuserid=req.firebaseuserid
         const groupid=ObjectId(req.params.id)
         const {title,description}=req.body;
@@ -132,35 +109,27 @@ const createPost = async (req,res)=>{
                 ingroup:true, //this specifies that this post is restricted in this group
                 createdAt:new Date()
             })
-            try{
-                const rewardQueue=process.env.REWARDQUEUE;
-                const data={
-                    type:'credit',
-                    points:5,
-                    userid1:firebaseuserid
-                }
-                await sendToWorkerQueue(rewardQueue,data)
-                return res.status(200).json({"message":"Post created succesfully in the group"})
+            const rewardQueue=process.env.REWARDQUEUE;
+            const data={
+                type:'credit',
+                points:5,
+                userid1:firebaseuserid
             }
-            catch(error){
-                console.log(error);
-                return res.status(200).json({message:"Post created - Reward service is down at the moment"})
-            }
+            await sendToWorkerQueue(rewardQueue,data)
+            return res.status(200).json({"message":"Post created succesfully in the group"})
         }
-    }
-    catch(error){
-        console.log(error);
-        return res.status(501).json({message:"can't create a post in this group - server side error"})
-    }
+        else{
+            throw new ExpressError("Insufficient Details to create a post",400)
+        }
+   
 }
 
 const joinGroup = async (req,res)=>{
-    try{
         const groupid=ObjectId(req.params.id);
         const firebaseuserid=req.firebaseuserid
         const alreadyMember= await _db.collection('groupmembers').findOne({memberid:firebaseuserid,groupid:groupid});
         if(alreadyMember){
-            return res.status(403).json({message:"You are already a member of this group"})
+            throw new ExpressError("You are already a member",409)
         }
         else{
             const userObject= await _db.collection('userInfo').findOne({userid:firebaseuserid});
@@ -173,15 +142,9 @@ const joinGroup = async (req,res)=>{
             })
             return res.status(200).json({message:"You have now joined the group"})
         }
-    }
-    catch(error){
-        console.log(error);
-        return res.status(501).json({message:"Can't join the group - Server side error"})
-    }
 }
 
 const leaveGroup = async (req,res)=>{
-    try{
         const firebaseuserid=req.firebaseuserid
         const groupid=ObjectId(req.params.id);
         const isMember=await _db.collection('groupmembers').findOne({
@@ -196,18 +159,12 @@ const leaveGroup = async (req,res)=>{
             return res.status(200).json({message:"You have now left the group"})
         }
         else{
-            return res.status(409).json({message:"You are not a member of this group"})
+            throw new ExpressError("You are not a member of this group",409)
         }
-    }
-    catch(error){
-        console.log(error);
-        return res.status(501).json({message:"Can't leave the group - Server side error"})
-    }
 }
 
 const fetchMembers = async (req,res)=>{
     //fetch the usernames of the group members
-    try{
         const groupid=ObjectId(req.params.id);
         const members= await _db.collection('groupmembers').aggregate([
             {
@@ -218,15 +175,9 @@ const fetchMembers = async (req,res)=>{
             }
         ]).toArray();
         return res.status(200).json(members);
-    }
-    catch(error){
-        console.log(error);
-        return res.status(501).json({message:"Can't fetch members for this group - Server side error"})
-    }
 }
 
 const getTimeline = async (req,res)=>{
-    try{
         const groupid=ObjectId(req.params.id);
         const timelinePosts=await _db.collection('posts').aggregate([
             {
@@ -240,31 +191,22 @@ const getTimeline = async (req,res)=>{
             }
         ]).toArray()
         return res.status(200).json(timelinePosts);
-    }
-    catch(error){
-        console.log(error);
-        return res.status(501).json({message:"Can't get timeline posts of this group - Server side error"})
-    }
 }
 
 const updateGroup = async (req,res)=>{
-    try{
         const groupid=ObjectId(req.params.id)
         const updatedFields=req.body;
         await _db.collection('groups').updateOne({_id:groupid},
             {$set: updatedFields}
         )
         return res.status(200).json({message:"Updated group details"})
-    }
-    catch(error){
-        console.log(error);
-        return res.status(501).json({message:"Can't update group details"})
-    }
 }
 
 
 const updateDisplayPicture = async (req,res)=>{
-    try{
+    if(!req.file){
+        throw new ExpressError("Missing file to upload",400);       
+    }
         const data= await cloudinary.uploader.upload(req.file.path,{
             folder:process.env.PROFILEPICSFOLDER,
             use_filename:true
@@ -279,35 +221,26 @@ const updateDisplayPicture = async (req,res)=>{
                 $set:updatedFields
             })
         return res.status(200).json({message:"Display picture updated"})
-    }
-    catch(error){
-        console.log(error);
-        return res.status(501).json({message:"Can't update display picture at the moment"})
-    }
 }
 
 const updateBackgroundPicture = async (req,res)=>{
-    try{
-        const data= await cloudinary.uploader.upload(req.file.path,{
-            folder:process.env.PROFILEPICSFOLDER,
-            use_filename:true
-        });
-        const groupid= ObjectId(req.params.id);
-        const updatedFields={
-            backgroundpic:data.secure_url,
-            updatedAt:new Date()
-        }
-        await _db.collection('groups').updateOne({_id:groupid},
-        {
-            $set:updatedFields
-        })
-        return res.status(200).json({message:"Background picture updated"})
+    if(!req.file){
+        throw new ExpressError("Missing file to upload",400);
     }
-    catch(error){
-        console.log(error);
-        return res.status(501).json("Can't update Background picture at the moment")
+    const data= await cloudinary.uploader.upload(req.file.path,{
+        folder:process.env.PROFILEPICSFOLDER,
+        use_filename:true
+    });
+    const groupid= ObjectId(req.params.id);
+    const updatedFields={
+        backgroundpic:data.secure_url,
+        updatedAt:new Date()
     }
-
+    await _db.collection('groups').updateOne({_id:groupid},
+    {
+        $set:updatedFields
+    })
+    return res.status(200).json({message:"Background picture updated"})
 }
 
 module.exports = { createGroup,updateGroup,getAllGroups,deleteGroup,fetchStats,createPost,

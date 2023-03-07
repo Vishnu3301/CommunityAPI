@@ -14,6 +14,14 @@ app.use('/api/auth',authRouter);
 app.use('/api/posts',postRouter);
 app.use('/api/users',userRouter)
 app.use('/api/groups',groupRouter);
+
+//custom error handler
+app.use((err,req,res,next)=>{
+    const {status=500,message="something went wrong"}=err;
+    return res.status(status).json({message})
+})
+
+
 //start the express app
 app.listen(PORT,()=>{
     //db connection

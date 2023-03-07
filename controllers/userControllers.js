@@ -9,82 +9,65 @@ const { error } = require('console');
 const { cloudinary } = require('../utils/cloudinary');
 const mailQueue=process.env.MAILINGQUEUE
 const rewardQueue=process.env.REWARDQUEUE;
+const {ExpressError}=require('../utils/customErrorHandler')
 const getUser = async (req,res)=>{
-    try{
-        const username=req.params.username;
-        const userInfo= await _db.collection('userInfo').findOne({username:username})
-        if(userInfo){
-            const {_id,userid,email,mobile,...actualInfo}=userInfo; //mask email and mobile
-            return res.status(200).json(actualInfo);
-        }
-        else{
-            return res.status(200).json({message:"No such user exists"})
-        }
+    const username=req.params.username;
+    const userInfo= await _db.collection('userInfo').findOne({username:username})
+    if(userInfo){
+        const {_id,userid,email,mobile,...actualInfo}=userInfo; //mask email and mobile
+        return res.status(200).json(actualInfo);
     }
-    catch(error){
-        console.log(error);
-        return res.status(501).json({message:"Could not find the user - Server error"});
+    else{
+        throw new ExpressError("No such user exists",404)
     }
 }
 
 const followUser = async (req,res)=>{
-    try{
-        const username=req.params.username;
-        const userInfo= await _db.collection('userInfo').findOne({username:username});
-        if(userInfo){
-            const guestUserId= userInfo.userid;
-            const followerid=req.firebaseuserid
-            if(guestUserId===followerid){
-                return res.status(400).json({message:"You can't follow yourself"})
-            }
-            else{
-                const alreadyFollowing = await _db.collection('follows').findOne({followerid:followerid,followedid:guestUserId});
-                if(alreadyFollowing){
-                    return res.status(409).json({message:"You are already following this user"});
-                }
-                else{
-                    const followerObject=await _db.collection('userInfo').findOne({userid:followerid});
-                    const followerEmail=req.email;
-                    await _db.collection('follows').insertOne({
-                        followerid:followerid, //this user requested to follow the below user
-                        followedid:guestUserId, //this user gains a follower
-                        follwerusername:followerObject.username,
-                        followeremail:followerEmail,
-                        followedAt:new Date()
-                    })
-                    const guestUserObject=await _db.collection('userInfo').findOne({userid:guestUserId});
-                    const guestUsermail=guestUserObject.email
-                    //mailing service starts
-                    try{
-                        const points=2,userid1=followerid,userid2=guestUserId,type='credit'
-                        const reward={type,points,userid1,userid2};
-                        const data={
-                            receiver:guestUsermail,
-                            body:`${followerObject.username} just followed you`
-                        }
-                        await sendToWorkerQueue(mailQueue,data)
-                        await sendToWorkerQueue(rewardQueue,reward)
-                        return res.status(200).json({message:"You followed the user"});
-                    }
-                    catch(error){
-                        console.log(error);
-                        return res.status(200).json({message:"Followed the user - but failed to send mail/credit reward"})
-                    }
-                }
-            }
+    const username=req.params.username;
+    const userInfo= await _db.collection('userInfo').findOne({username:username});
+    if(userInfo){
+        const guestUserId= userInfo.userid;
+        const followerid=req.firebaseuserid
+        if(guestUserId===followerid){
+            throw new ExpressError("You cannot follow yourself",409)
         }
         else{
-           return  res.status(200).json({message:"No such user exists"})
+            const alreadyFollowing = await _db.collection('follows').findOne({followerid:followerid,followedid:guestUserId});
+            if(alreadyFollowing){
+                throw new ExpressError("You are already following this user",409)
+            }
+            else{
+                const followerObject=await _db.collection('userInfo').findOne({userid:followerid});
+                const followerEmail=req.email;
+                await _db.collection('follows').insertOne({
+                    followerid:followerid, //this user requested to follow the below user
+                    followedid:guestUserId, //this user gains a follower
+                    follwerusername:followerObject.username,
+                    followeremail:followerEmail,
+                    followedAt:new Date()
+                })
+                const guestUserObject=await _db.collection('userInfo').findOne({userid:guestUserId});
+                const guestUsermail=guestUserObject.email
+                //mailing service starts
+                const points=2,userid1=followerid,userid2=guestUserId,type='credit'
+                const reward={type,points,userid1,userid2};
+                const data={
+                    receiver:guestUsermail,
+                    body:`${followerObject.username} just followed you`
+                }
+                await sendToWorkerQueue(mailQueue,data)
+                await sendToWorkerQueue(rewardQueue,reward)
+                return res.status(200).json({message:"You followed the user"});
+                
+            }
         }
     }
-    catch(error){
-        console.log(error);
-        return res.status(501).json({message:"Could not follow the user - Server error"});
+    else{
+        throw new ExpressError("No such user exists",404)
     }
 }
 
 const unfollowUser = async (req,res)=>{
-    try{
         const username=req.params.username;
         const userInfo= await _db.collection('userInfo').findOne({username:username});
         if(userInfo){
@@ -92,7 +75,7 @@ const unfollowUser = async (req,res)=>{
             const followerid= req.firebaseuserid;
             const notFollowing = await _db.collection('follows').findOne({followerid:followerid,followedid:guestUserId});
             if(!notFollowing){
-                return res.status(409).json({message:"You are already not following this user"});
+                throw new ExpressError("You are already not following this user",409)
             }
             else{
                 const followerObject=await _db.collection('userInfo').findOne({userid:followerid});
@@ -103,201 +86,146 @@ const unfollowUser = async (req,res)=>{
                 const guestUserObject=await _db.collection('userInfo').findOne({userid:guestUserId});
                 const guestUsermail=guestUserObject.email
                 //mailing service starts
-                try{
-                    const data={
-                        receiver:guestUsermail,
-                        body:`${followerObject.username} unfollowed you`
-                    }
-                    const type='debit',points=2,userid1=followerid,userid2=guestUserId
-                    const reward={type,points,userid1,userid2}
-                    await sendToWorkerQueue(mailQueue,data)
-                    await sendToWorkerQueue(rewardQueue,reward)
-                    return res.status(200).json({message:"You unfollowed the user"});
+                const data={
+                    receiver:guestUsermail,
+                    body:`${followerObject.username} unfollowed you`
                 }
-                catch(error){
-                    console.log(error);
-                    return res.status(200).json({message:"Unfollowed the user - Reward/mail service is down at the moment`"})
-                }
+                const type='debit',points=2,userid1=followerid,userid2=guestUserId
+                const reward={type,points,userid1,userid2}
+                await sendToWorkerQueue(mailQueue,data)
+                await sendToWorkerQueue(rewardQueue,reward)
+                return res.status(200).json({message:"You unfollowed the user"});
+                
             }
         }
         else{
-            return res.status(200).json({message:"No such user exists"})
+            throw new ExpressError("No Such user exists",404)
         }
-    }
-    catch(error){
-        console.log(error);
-        return res.status(501).json({message:"Could not unfollow the user - Server error"});
-    }
 }
 
 const updateUser= async (req,res)=>{
     const firebaseuserid=req.firebaseuserid
-    try{
-        let updatedFields={...req.body,updatedAt:new Date()};
-        await _db.collection('userInfo').updateOne({userid:firebaseuserid},{
-            $set: updatedFields
-        })
-        const userEmail=req.email;
-        try{
-            const data={
-                receiver:userEmail,
-                body:"Your Profile  has been updated"
-            }
-            await sendToWorkerQueue(mailQueue,data)
-            return res.status(200).json({message:"Your Profile has been updated"})
-        }
-        catch(error){
-            console.log(error);
-            return res.status(200).json({message:"Your profile has been updated - but unable to send mai"})
-        }
+    let updatedFields={...req.body,updatedAt:new Date()};
+    await _db.collection('userInfo').updateOne({userid:firebaseuserid},{
+        $set: updatedFields
+    })
+    const userEmail=req.email;
+    const data={
+        receiver:userEmail,
+        body:"Your Profile  has been updated"
     }
-    catch(error){
-        console.log(error);
-        return res.status(501).json({"message":"Can't update your details - Server error"})
-    }
+    await sendToWorkerQueue(mailQueue,data)
+    return res.status(200).json({message:"Your Profile has been updated"})
 }
 
 const getfollowerCount= async (req,res)=>{
-    try{
-        const username=req.params.username;
-        const userInfo= await _db.collection('userInfo').findOne({username:username});
-        if(userInfo){
-            const guestUserId= userInfo.userid;
-            const followerCount= await _db.collection('follows').countDocuments({followedid:guestUserId});
-            return res.status(200).json({"followers": `${followerCount}`});
-        }
-        else{
-            return res.status(200).json({message:"No such user exists"})
-        }
+    const username=req.params.username;
+    const userInfo= await _db.collection('userInfo').findOne({username:username});
+    if(userInfo){
+        const guestUserId= userInfo.userid;
+        const followerCount= await _db.collection('follows').countDocuments({followedid:guestUserId});
+        return res.status(200).json({"followers": `${followerCount}`});
     }
-    catch(error){
-        console.log(error);
-        return res.status(501).json({message:"Could not find the number of followers - Server error"});
+    else{
+        throw new ExpressError("No such user exists",404)
     }
 }
 
 const getStats= async (req,res)=>{
-    try{
-        const username=req.params.username;
-        const userInfo= await _db.collection('userInfo').findOne({username:username});
-        if(userInfo){
-            const firebaseuserid= userInfo.userid
-            const postsCount= await _db.collection('posts').countDocuments({creatorid:firebaseuserid}); //the total number of posts user created
-            const likesCount= await _db.collection('postlikes').countDocuments({creatorid:firebaseuserid}); //the total likes user got over all his posts combined
-            const commentsCount = await _db.collection('comments').countDocuments({commentatorid:firebaseuserid}); //the total number of comments the user made
-            const rewardObject = await _db.collection('rewards').findOne({userid:firebaseuserid}); //get the rewards for the user
-            const followers= await _db.collection('follows').countDocuments({followedid:firebaseuserid}) // get the followers count of the user
-            let rewards=0;
-            if(rewardObject){
-                rewards=rewardObject.points
-            }
-            const data={
-                postsCount,likesCount,commentsCount,rewards,followers
-            }
-            return res.status(200).json(data);
+    const username=req.params.username;
+    const userInfo= await _db.collection('userInfo').findOne({username:username});
+    if(userInfo){
+        const firebaseuserid= userInfo.userid
+        const postsCount= await _db.collection('posts').countDocuments({creatorid:firebaseuserid}); //the total number of posts user created
+        const likesCount= await _db.collection('postlikes').countDocuments({creatorid:firebaseuserid}); //the total likes user got over all his posts combined
+        const commentsCount = await _db.collection('comments').countDocuments({commentatorid:firebaseuserid}); //the total number of comments the user made
+        const rewardObject = await _db.collection('rewards').findOne({userid:firebaseuserid}); //get the rewards for the user
+        const followers= await _db.collection('follows').countDocuments({followedid:firebaseuserid}) // get the followers count of the user
+        let rewards=0;
+        if(rewardObject){
+            rewards=rewardObject.points
         }
-        else{
-            return res.status(200).json({message:"No such user exists"})
+        const data={
+            postsCount,likesCount,commentsCount,rewards,followers
         }
+        return res.status(200).json(data);
     }
-    catch(error){
-        console.log(error);
-        return res.status(501).json({message:"Could not find the stats of the user"});
+    else{
+        throw new ExpressError("No such user exists",404)
     }
 }
 
 const myDetails = async (req,res)=>{
     const firebaseuserid = req.firebaseuserid
-    try{
-        const myInfo=await _db.collection('userInfo').findOne({userid:firebaseuserid});
-        const {_id,userid,...safeInfo}=myInfo;
-        return res.status(200).json(safeInfo);
-    }
-    catch(error){
-        console.log(error);
-        return res.status(501).json({message:"Could not find your details - Server error"});
-    }
+    const myInfo=await _db.collection('userInfo').findOne({userid:firebaseuserid});
+    const {_id,userid,...safeInfo}=myInfo;
+    return res.status(200).json(safeInfo);
 }
 
 const getFollowers= async (req,res)=>{
-    const firebaseuserid= req.firebaseuserid //logged in users firebaseuserid
-    try{
-        const {page=1,limit:followersPerPage=5} = req.query
-        const username=req.params.username;
-        const userObject= await _db.collection('userInfo').findOne({username:username});
-        if(userObject){
-            const userId=userObject.userid;
-            const followers=await _db.collection('follows').aggregate([
-                {
-                    $match:{followedid:userId}
-                },
-                {
-                    $skip: parseInt((page-1)*followersPerPage)
-                },
-                {
-                    $limit:parseInt(followersPerPage)
-                },
-                {
-                    $project:{_id:0,follwerusername:1}
-                }
-            ]).toArray();
-            return res.status(200).json(followers);
-        }
-        else{
-            return res.status(404).json({message:"No such user Found"})
-        }
+    const {page=1,limit:followersPerPage=5} = req.query
+    const username=req.params.username;
+    const userObject= await _db.collection('userInfo').findOne({username:username});
+    if(userObject){
+        const userId=userObject.userid;
+        const followers=await _db.collection('follows').aggregate([
+            {
+                $match:{followedid:userId}
+            },
+            {
+                $skip: parseInt((page-1)*followersPerPage)
+            },
+            {
+                $limit:parseInt(followersPerPage)
+            },
+            {
+                $project:{_id:0,follwerusername:1}
+            }
+        ]).toArray();
+        return res.status(200).json(followers);
     }
-    catch(error){
-        console.log(error);
-        return res.status(501).json({message:"Could not find the followers for this user - Server error"});
+    else{
+        throw new ExpressError("No such user exists",404)
     }
 }
 
 
 const updateDisplayPicture = async (req,res)=>{
-    try{
-        const data= await cloudinary.uploader.upload(req.file.path,{
-            folder:process.env.PROFILEPICSFOLDER,
-            use_filename:true
-        })
-        const updatedFields={
-            displaypic:data.secure_url,
-            updatedAt:new Date()
-        }
-        const firebaseuserid=req.firebaseuserid
-        await _db.collection('userInfo').updateOne({userid:firebaseuserid},{
-            $set:updatedFields
-        });
-        return res.status(200).json({message:"Display picture updated"})
-
+    if(!req.file){
+        throw new ExpressError("Missing Image to set as display picture",400) 
     }
-    catch(error){
-        console.log(error);
-        return res.status(501).json({"message":"Cant Update Display picture at the moment"})
+    const data= await cloudinary.uploader.upload(req.file.path,{
+        folder:process.env.PROFILEPICSFOLDER,
+        use_filename:true
+    })
+    const updatedFields={
+        displaypic:data.secure_url,
+        updatedAt:new Date()
     }
+    const firebaseuserid=req.firebaseuserid
+    await _db.collection('userInfo').updateOne({userid:firebaseuserid},{
+        $set:updatedFields
+    });
+    return res.status(200).json({message:"Display picture updated"})
 }
 
 const updateBackgroundPicture = async (req,res)=>{
-    try{
-        const data= await cloudinary.uploader.upload(req.file.path,{
-            folder:process.env.PROFILEPICSFOLDER,
-            use_filename:true
-        })
-        const updatedFields={
-            backgroundpic:data.secure_url,
-            updatedAt:new Date()
-        }
-        const firebaseuserid=req.firebaseuserid
-        await _db.collection('userInfo').updateOne({userid:firebaseuserid},{
-            $set:updatedFields
-        });
-        return res.status(200).json({message:"Background picture updated"})
-
+    if(!req.file){
+        throw new ExpressError("Missing Image to set as background picture",400) 
     }
-    catch(error){
-        console.log(error);
-        return res.status(501).json({"message":"Cant update  Background  picture at the moment"})
+    const data= await cloudinary.uploader.upload(req.file.path,{
+        folder:process.env.PROFILEPICSFOLDER,
+        use_filename:true
+    })
+    const updatedFields={
+        backgroundpic:data.secure_url,
+        updatedAt:new Date()
     }
+    const firebaseuserid=req.firebaseuserid
+    await _db.collection('userInfo').updateOne({userid:firebaseuserid},{
+        $set:updatedFields
+    });
+    return res.status(200).json({message:"Background picture updated"})
 }
 
 module.exports ={ getUser,followUser,unfollowUser,updateUser,getfollowerCount,getStats,myDetails,getFollowers,updateDisplayPicture, updateBackgroundPicture};

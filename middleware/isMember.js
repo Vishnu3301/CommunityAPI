@@ -8,7 +8,7 @@ const isMember = async (req,res,next)=>{
     const groupid=ObjectId(req.params.id);
     try{
         const memberObject=await  _db.collection('groupmembers').findOne({
-            userid:firebaseuserid,
+            memberid:firebaseuserid,
             groupid:groupid
         })
         if(memberObject){

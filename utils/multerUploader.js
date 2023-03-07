@@ -1,6 +1,7 @@
 const multer=require('multer')
 const {MulterError}=require('multer')
 const path=require('path')
+const { ExpressError } = require('./customErrorHandler')
 require('dotenv').config({path:path.resolve(__dirname+'../.env')})
 
 const imageExtensions=['.jpeg','.jpg','.png']
