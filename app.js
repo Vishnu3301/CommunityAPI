@@ -1,4 +1,5 @@
 const express=require('express'); //require express
+const { MongoServerError } = require('mongodb');
 const {connectTodb}=require('./db'); //for connection to database
 const {authRouter}=require('./routers/authRoutes');
 const { groupRouter } = require('./routers/groupRoutes');
@@ -17,7 +18,11 @@ app.use('/api/groups',groupRouter);
 
 //custom error handler
 app.use((err,req,res,next)=>{
-    const {status=500,message="something went wrong"}=err;
+    const {status=500}=err;
+    let {message="Server Error"}=err;
+    if(err instanceof MongoServerError){
+        message="Database Error, Please check your inputs"
+    }
     return res.status(status).json({message})
 })
 
