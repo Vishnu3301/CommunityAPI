@@ -2,12 +2,12 @@
   "name": "communityapi",
   "version": "1.0.0",
   "description": "",
-  "main": "app.js",
+  "main": "index.js",
   "engines": {
     "node":"16.x"
   },
   "scripts": {
-    "test": "nodemon app.js"
+    "test": "node index.js"
   },
   "repository": {
     "type": "git",
