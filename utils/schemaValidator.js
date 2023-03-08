@@ -1,14 +1,10 @@
 const {z}=require('zod');
 const {generateErrorMessage}=require('zod-error')
 const userSignup= z.object({
-    name: z.string(),
-    username: z.string(),
+    username: z.string().min(6),
     email: z.string().email(),
-    gender: z.enum(['male','female']),
-    profession: z.string().nullable().optional(),
-    mobile: z.number().nullable().optional(),
-    location: z.string().nullable().optional()
-})
+    password:z.string().min(6)
+}).strict()
 
 const userLogin= z.object({
     email: z.string().email(),
