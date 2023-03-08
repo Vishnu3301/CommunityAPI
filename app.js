@@ -16,6 +16,9 @@ app.use('/api/posts',postRouter);
 app.use('/api/users',userRouter)
 app.use('/api/groups',groupRouter);
 
+app.get('/',(req,res)=>{
+    res.status(200).json({message:"Welcome to Community-API"})
+})
 //custom error handler
 app.use((err,req,res,next)=>{
     const {status=500}=err;
@@ -36,3 +39,5 @@ app.listen(PORT,()=>{
     })
     console.log(`Listening on port ${PORT}`)
 })
+
+module.exports=app
