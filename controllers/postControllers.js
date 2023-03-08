@@ -68,6 +68,9 @@ const getTimeline = async (req,res)=>{
             $sort:{"followingPosts.createdAt":-1}
         },
         {
+            $skip:parseInt(page-1)*groupPostsLimit
+        },
+        {
             $limit:parseInt(followerPostsLimit)
         },
         {
@@ -92,6 +95,9 @@ const getTimeline = async (req,res)=>{
             },
             {
                 $sort:{"groupPosts.createdAt":-1}
+            },
+            {
+                $skip:parseInt(page-1)*followerPostsLimit
             },
             {
                 $limit:parseInt(groupPostsLimit)
