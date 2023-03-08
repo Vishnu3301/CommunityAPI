@@ -210,6 +210,12 @@ const updateDisplayPicture = async (req,res)=>{
     await _db.collection('userInfo').updateOne({userid:firebaseuserid},{
         $set:updatedFields
     });
+    const userEmail=req.email
+    const data={
+        receiver:userEmail,
+        body:"Your Display Picture has been updated"
+    }
+    await sendToWorkerQueue(mailQueue,data)
     return res.status(200).json({message:"Display picture updated"})
 }
 
@@ -231,6 +237,12 @@ const updateBackgroundPicture = async (req,res)=>{
     await _db.collection('userInfo').updateOne({userid:firebaseuserid},{
         $set:updatedFields
     });
+    const userEmail=req.email
+    const data={
+        receiver:userEmail,
+        body:"Your Background Picture has been updated"
+    }
+    await sendToWorkerQueue(mailQueue,data)
     return res.status(200).json({message:"Background picture updated"})
 }
 
