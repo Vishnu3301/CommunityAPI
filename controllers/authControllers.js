@@ -29,9 +29,13 @@ const signup = async (req,res)=>{
     if(validatedData.success){
         const {name="",gender="",profession="",mobile="",location=""}=req.body;
         let {email,username,password}=req.body
-        const foundUser= await _db.collection('userInfo').findOne({username:username});
-        if(foundUser){
+        const foundUserbyUsername= await _db.collection('userInfo').findOne({username:username});
+        if(foundUserbyUsername){
             throw new ExpressError("Username is already taken",400)
+        }
+        const foundUserbyEmail = await _db.collection('userInfo').findOne({email:email})
+        if(foundUserbyEmail){
+            throw new ExpressError("Email already in use",409)
         }
         const userInfo= await createUserWithEmailAndPassword(auth,email,password)
         const userId=userInfo.user.uid;
