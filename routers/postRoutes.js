@@ -2,7 +2,7 @@ const express=require('express');
 const postRouter=express.Router();
 const {isLoggedin}=require('../middleware/isAuthenticated');
 const {getMyposts,createPost,getTimeline,updatePost,deletePost,makeInvisible, makeVisible, likePost, 
-    unlikePost,getComments,addComment,updateComment,deleteComment,likeComment,replyComment,unlikeComment, attachFiles}=require('../controllers/postControllers')
+    unlikePost,getComments,addComment,updateComment,deleteComment,likeComment,replyComment,unlikeComment, attachFiles, getReplies}=require('../controllers/postControllers')
 const {isCreator}=require('../middleware/isPostCreator')
 const {isCommentator}=require('../middleware/isCommentator');
 const { multerAttachmentFileUploader } = require('../utils/multerUploader');
@@ -20,6 +20,7 @@ postRouter.put('/:id/attatch',isLoggedin,isCreator,multerAttachmentFileUploader,
 
 //comment routes
 postRouter.get('/:id/comments',isLoggedin,wrapAsync(getComments)) //get all comments on that post with pagination 
+postRouter.get('/:id/comments/:commentid/replies',isLoggedin,wrapAsync(getReplies))
 postRouter.post('/:id/comments',isLoggedin,wrapAsync(addComment)) //comment on that post 
 postRouter.post('/:id/comments/:commentid/reply',isLoggedin,wrapAsync(replyComment)) //reply to a specific comment
 postRouter.put('/:id/comments/:commentid',isLoggedin,isCommentator,wrapAsync(updateComment)) //update a specific comment 

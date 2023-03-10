@@ -30,22 +30,13 @@ async function consumeMessages(){
             const username=userObject.username
             let text=`${username} just created a post`
             mailOptions={...mailOptions,text}
-            try{
-                toEmails.forEach(async (mail)=>{
-                    let useCaseMailOptions={...mailOptions,to:mail}
-                    await transport.sendMail(useCaseMailOptions)
-                    console.log(`(BulkMail) Mail sent to ${mail}`)
-                })
-                channel.ack(msg)
-            }
-            catch(error){
-                console.log(error)
-            }
+            toEmails.forEach(async (mail)=>{
+                let useCaseMailOptions={...mailOptions,to:mail}
+                await transport.sendMail(useCaseMailOptions)
+            })
         }
-        else{
-            console.log("No followers")
-        }
-    },{noAck:false})
+        channel.ack(msg)
+    },{noAck:false}) //manual acknowledgement
 }
 
 consumeMessages()

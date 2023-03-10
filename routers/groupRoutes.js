@@ -1,5 +1,5 @@
 const express=require('express');
-const { getAllGroups, fetchStats, fetchMembers, getTimeline, createGroup, updateGroup, deleteGroup, createPost, joinGroup, leaveGroup, updateDisplayPicture, updateBackgroundPicture } = require('../controllers/groupControllers');
+const { getAllGroups, fetchStats, fetchMembers, getTimeline, createGroup, updateGroup, deleteGroup, createPost, joinGroup, leaveGroup, updateDisplayPicture, updateBackgroundPicture, addUser, removeUser } = require('../controllers/groupControllers');
 const groupRouter=express.Router();
 const {isLoggedin} = require('../middleware/isAuthenticated');
 const {isGroupAdmin}= require('../middleware/isGroupAdmin');
@@ -19,4 +19,6 @@ groupRouter.put('/:id/join',isLoggedin,wrapAsync(joinGroup))//logged in user can
 groupRouter.delete('/:id/leave',isLoggedin,wrapAsync(leaveGroup))//logged in user can leave a group //done
 groupRouter.put('/:id/updatedp',isLoggedin,isGroupAdmin,multerImageUploader,wrapAsync(updateDisplayPicture)) //update group dp
 groupRouter.put('/:id/updatebg',isLoggedin,isGroupAdmin,multerImageUploader,wrapAsync(updateBackgroundPicture)) // update group bg
+groupRouter.put('/:id/:username/adduser',isLoggedin,isGroupAdmin,wrapAsync(addUser)) //group admin can add users
+groupRouter.delete('/:id/:username/removeUser',isLoggedin,isGroupAdmin,wrapAsync(removeUser)) //group admin can remove users
 module.exports= {groupRouter}

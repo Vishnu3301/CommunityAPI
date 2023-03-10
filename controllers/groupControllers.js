@@ -246,5 +246,35 @@ const updateBackgroundPicture = async (req,res)=>{
     return res.status(200).json({message:"Background picture updated"})
 }
 
+const addUser = async (req,res)=>{
+    const groupid=ObjectId(req.params.id);
+    const username=req.params.username
+    const alreadyMember= await _db.collection('groupmembers').findOne({groupid:groupid,username:username});
+    if(alreadyMember){
+        throw ExpressError("User is already a member of this group",403)
+    }
+    const userObject=await _db.collection('userInfo').findOne({username:username});
+    const firebaseuserid=userObject.userid
+    await _db.collection('groupmembers').insertOne({
+        groupid,
+        username,
+        memberid:firebaseuserid,
+        joinedAt:new Date()
+    })
+    res.status(200).json({"message":"User is added to the group"})
+}
+
+const removeUser = async (req,res)=>{
+    const groupid=ObjectId(req.params.id);
+    const username=req.params.username
+    const isMember=await _db.collection('groupmembers').findOne({groupid:groupid,username:username});
+    if(isMember){
+        await _db.collection('groupmembers').deleteOne({username:username})
+        return res.status(200).json({message:"User is removed from the group"})
+    }
+    else{
+        throw new ExpressError("User is not a member of this group in the first place",403)
+    }
+}
 module.exports = { createGroup,updateGroup,getAllGroups,deleteGroup,fetchStats,createPost,
-    joinGroup,leaveGroup,fetchMembers,getTimeline, updateDisplayPicture,updateBackgroundPicture}
+    joinGroup,leaveGroup,fetchMembers,getTimeline, updateDisplayPicture,updateBackgroundPicture, addUser, removeUser}

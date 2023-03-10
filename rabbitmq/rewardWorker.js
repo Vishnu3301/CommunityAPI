@@ -63,26 +63,16 @@ async function consumeMessages(){
             //means we have 2 userids in the object
             //this means a route to make a comment/reply to comment/ follow a user is accessed
             //so we have to reward both the users with specified number of points
-            try{
-                await rewardTwoUsers(type,userid1,userid2,points)
-                channel.ack(msg)
-            }
-            catch(error){
-                console.log(error);
-            }
+            await rewardTwoUsers(type,userid1,userid2,points)
+            channel.ack(msg)
 
         }
         else{
             //only userid1 exists in the object
             //this means a route to make post (either a public post or a post in a group )is accessed
             //so we have to reward only the post creator
-            try{
-                await rewardOneUser(type,userid1,points)
-                channel.ack(msg)
-            }
-            catch(error){
-                console.log(error);
-            }
+            await rewardOneUser(type,userid1,points)
+            channel.ack(msg)
 
         }
     },{noAck:false})

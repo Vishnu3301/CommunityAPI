@@ -1,5 +1,5 @@
 const express=require('express'); //require express
-const { MongoServerError } = require('mongodb');
+const { MongoServerError, MongoServerSelectionError, MongoTopologyClosedError } = require('mongodb');
 const {connectTodb}=require('./db'); //for connection to database
 const {authRouter}=require('./routers/authRoutes');
 const { groupRouter } = require('./routers/groupRoutes');
@@ -23,21 +23,28 @@ app.get('/',(req,res)=>{
 app.use((err,req,res,next)=>{
     const {status=500}=err;
     let {message="Server Error"}=err;
+    if(err instanceof MongoServerSelectionError){
+        message="Connection Timeout!!!, Please try after sometim"
+    }
     if(err instanceof MongoServerError){
         message="Database Error, Please check your inputs"
     }
+    if(err instanceof MongoTopologyClosedError){
+        message="Can't Connect to Database at the moment!!"
+    }
+    console.log(err)
     return res.status(status).json({message})
 })
 
+//undefined route
+app.all('*',(req,res)=>{
+    res.status(404).json({message:'Not Found'})
+})
 
 //start the express app
 app.listen(PORT,()=>{
     //db connection
     connectTodb()
-    .then(data=>{
-        console.log(data);
-    })
-    console.log(`Listening on port ${PORT}`)
 })
 
 module.exports=app

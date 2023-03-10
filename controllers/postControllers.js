@@ -14,6 +14,9 @@ const {mybucket}=require('../utils/gcp')
 const getMyposts= async (req,res)=>{
     const firebaseuserid=req.firebaseuserid;
     const {page=1,limit:postsPerPage=5} = req.query
+    if(page<=0 || postsPerPage<=0){
+        throw new ExpressError("Page and Limit queries must be greater than 0",400)
+    }
     const posts= await _db.collection('posts').aggregate([{
         $match:{ creatorid: firebaseuserid,visible:true}
         },
@@ -45,6 +48,9 @@ const getTimeline = async (req,res)=>{
     //to limit the number of posts from each category and add it upto 10
     //usage of page is redundant
     const {page=1,limit:postsPerPage=10}=req.query
+    if(page<=0 || postsPerPage<=0){
+        throw new ExpressError("Page and Limit queries must be greater than 0",400)
+    }
     const followerPostsLimit=Math.floor((Math.random()*(postsPerPage-1)))+1;
     const groupPostsLimit=parseInt(postsPerPage)-followerPostsLimit
     let followersPosts=await  _db.collection('follows').aggregate([
@@ -306,19 +312,56 @@ const getComments=async (req,res)=>{
     const postId= new ObjectId(req.params.id);
     //for now , this gets all comments on the post (not the replies just the comments- parent comments)
     //pagination to be implemented
+    const {page=1,limit:commentsPerPage=5}=req.query
+    if(page<=0 || commentsPerPage<=0){
+        throw new ExpressError("Page and Limit queries must be greater than 0",400)
+    }
     const comments=await _db.collection('comments').aggregate([
         {
             $match:{postid:postId,onpost:true}
         }
         ,
         {
-            $project:{_id:0,username:1,text:1}
+            $sort:{createdAt:-1}
         },
         {
-            $sort:{createdAt:-1,updatedAt:-1}
+            $skip:parseInt(page-1)*parseInt(commentsPerPage)
+        },
+        {
+            $limit:parseInt(commentsPerPage)
+        },
+        {
+            $project:{_id:0,username:1,text:1}
         }
     ]).toArray();
     res.status(200).json(comments);
+}
+
+const getReplies = async (req,res)=>{
+    const postId=ObjectId(req.params.id);
+    const commentId=ObjectId(req.params.commentid)
+    const {page=1,limit:repliesPerPage=5}=req.query
+    if(page<=0 || repliesPerPage<=0){
+        throw new ExpressError("Page and Limit queries must be greater than 0",400)
+    }
+    const replies= await _db.collection('comments').aggregate([
+        {
+            $match:{postid:postId,parentcommentid:commentId}
+        },
+        {
+            $sort:{repliedAt:-1}
+        },
+        {
+            $skip:parseInt(page-1)*parseInt(repliesPerPage)
+        },
+        {
+            $limit:parseInt(repliesPerPage)
+        },
+        {
+            $project:{_id:0,username:1,text:1}
+        }
+    ]).toArray();
+    res.status(200).json(replies)
 }
 
 const addComment = async (req,res)=>{
@@ -343,7 +386,7 @@ const addComment = async (req,res)=>{
     }
     const groupid=postObject.groupid
     if(groupid){
-        newDocument={...newDocument,groupid:groupid}
+        newDocument={...newDocument,groupid:ObjectId(groupid)}
     }
     await _db.collection('comments').insertOne(newDocument)
     if(firebaseuserid!==postCreatorId){
@@ -503,5 +546,5 @@ const attachFiles = async (req,res)=>{
 module.exports={
     getMyposts,createPost,updatePost,deletePost,getTimeline,makeInvisible,
     makeVisible,likePost,unlikePost,getComments,addComment,updateComment,deleteComment,likeComment,
-    replyComment,unlikeComment,attachFiles
+    replyComment,unlikeComment,attachFiles, getReplies
 }

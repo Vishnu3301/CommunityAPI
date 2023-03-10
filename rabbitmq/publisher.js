@@ -16,7 +16,7 @@ async function  sendToWorkerQueue(queue,message){
     channel.sendToQueue(queue,Buffer.from(JSON.stringify(message)),{
         persistent:true
     })
-    console.log(`Sent to ${queue}`)
+    // console.log(`Sent to ${queue}`)
 }
 
 

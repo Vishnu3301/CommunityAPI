@@ -27,7 +27,8 @@ const auth = getAuth(firebaseapp);
 const signup = async (req,res)=>{
     const validatedData= userSignup.safeParse(req.body);
     if(validatedData.success){
-        const {name="",gender="",profession="",mobile="",location="",email,password,username}=req.body;
+        const {name="",gender="",profession="",mobile="",location=""}=req.body;
+        let {email,username,password}=req.body
         const foundUser= await _db.collection('userInfo').findOne({username:username});
         if(foundUser){
             throw new ExpressError("Username is already taken",400)
