@@ -11,12 +11,12 @@ postRouter.get('/',isLoggedin,wrapAsync(getMyposts)); //get all the posts of the
 postRouter.get('/timeline',isLoggedin,wrapAsync(getTimeline)); //get the timeline posts of the current logged in user
 postRouter.post('/',isLoggedin,wrapAsync(createPost));  //create a post corresponding to the current logged in user
 postRouter.put('/:id',isLoggedin,isCreator,wrapAsync(updatePost)); //update the details of a specific post made by the current logged in user
-postRouter.delete('/:id',isLoggedin,isCreator,wrapAsync(deletePost)); //delete a specific post created by the current logged in user
 postRouter.put('/:id/visible',isLoggedin,isCreator,wrapAsync(makeVisible)); //make the post visible
-postRouter.delete('/:id/visible',isLoggedin,isCreator,wrapAsync(makeInvisible));//make the post invisible
 postRouter.put('/:id/like',isLoggedin,wrapAsync(likePost)); //like a post
-postRouter.delete('/:id/like',isLoggedin,wrapAsync(unlikePost)); //unlike post
 postRouter.put('/:id/attatch',isLoggedin,isCreator,multerAttachmentFileUploader,wrapAsync(attachFiles)) //attach files to a post
+postRouter.delete('/:id',isLoggedin,isCreator,wrapAsync(deletePost)); //delete a specific post created by the current logged in user
+postRouter.delete('/:id/visible',isLoggedin,isCreator,wrapAsync(makeInvisible));//make the post invisible
+postRouter.delete('/:id/like',isLoggedin,wrapAsync(unlikePost)); //unlike post
 
 //comment routes
 postRouter.get('/:id/comments',isLoggedin,wrapAsync(getComments)) //get all comments on that post with pagination 

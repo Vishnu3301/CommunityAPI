@@ -24,7 +24,6 @@ const isCreator=async (req,res,next)=>{
         }
     }
     catch(error){
-        console.log(error);
         return res.status(501).json({message:"Server side error"})
     }
 }

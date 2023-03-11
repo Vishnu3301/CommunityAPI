@@ -1,4 +1,5 @@
 const express=require('express'); //require express
+const { FirebaseError } = require('firebase/app');
 const { MongoServerError, MongoServerSelectionError, MongoTopologyClosedError } = require('mongodb');
 const {connectTodb}=require('./db'); //for connection to database
 const {authRouter}=require('./routers/authRoutes');
@@ -32,13 +33,15 @@ app.use((err,req,res,next)=>{
     if(err instanceof MongoTopologyClosedError){
         message="Can't Connect to Database at the moment!!"
     }
-    console.log(err)
+    if(err instanceof FirebaseError){
+        message=err.code.slice(5)
+    }
     return res.status(status).json({message})
 })
 
 //undefined route
 app.all('*',(req,res)=>{
-    res.status(404).json({message:'Not Found'})
+    res.status(404).json({message:'Invalid Endpoint'})
 })
 
 //start the express app

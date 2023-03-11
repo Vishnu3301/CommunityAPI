@@ -5,7 +5,6 @@ require('dotenv').config({ path: path.resolve(__dirname, '../.env') })
 const _db=client.db(process.env.DBNAME);
 const {ObjectId}=require('mongodb')
 const {sendToWorkerQueue}=require('../rabbitmq/publisher');
-const { error } = require('console');
 // const { cloudinary } = require('../utils/cloudinary');
 const mailQueue=process.env.MAILINGQUEUE
 const rewardQueue=process.env.REWARDQUEUE;
@@ -108,6 +107,16 @@ const unfollowUser = async (req,res)=>{
 const updateUser= async (req,res)=>{
     const firebaseuserid=req.firebaseuserid
     let updatedFields={...req.body,updatedAt:new Date()};
+    
+    if(updatedFields.username){
+        const {username}=updatedFields;
+        const userObject=await _db.collection('userInfo').findOne({userid:firebaseuserid});
+        const previousUsername=userObject.username
+        const usernameTaken=await _db.collection('userInfo').findOne({username:username})
+        if(usernameTaken && previousUsername!=username){
+            throw new ExpressError("Username is already taken",403)
+        }
+    }
     await _db.collection('userInfo').updateOne({userid:firebaseuserid},{
         $set: updatedFields
     })

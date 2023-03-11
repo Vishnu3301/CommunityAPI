@@ -35,12 +35,11 @@ const attachmentFilesUploader= multer({
         }
         cb(null,true)
     }
-}).single('image')
+}).single('file')
 
 function multerImageUploader(req,res,next){
     imageUploader(req,res,function(err){
         if(err instanceof MulterError){
-            // console.log(err)
             return res.status(400).json({message:err.field})
         }
         else if(err){

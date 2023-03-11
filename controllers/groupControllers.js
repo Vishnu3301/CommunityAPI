@@ -254,6 +254,9 @@ const addUser = async (req,res)=>{
         throw ExpressError("User is already a member of this group",403)
     }
     const userObject=await _db.collection('userInfo').findOne({username:username});
+    if(!userObject){
+        throw  new ExpressError("User doesn't Exists",404);
+    }
     const firebaseuserid=userObject.userid
     await _db.collection('groupmembers').insertOne({
         groupid,
@@ -267,6 +270,10 @@ const addUser = async (req,res)=>{
 const removeUser = async (req,res)=>{
     const groupid=ObjectId(req.params.id);
     const username=req.params.username
+    const userObject=await _db.collection('userInfo').findOne({username:username});
+    if(!userObject){
+        throw  new ExpressError("User doesn't Exists",404);
+    }
     const isMember=await _db.collection('groupmembers').findOne({groupid:groupid,username:username});
     if(isMember){
         await _db.collection('groupmembers').deleteOne({username:username})

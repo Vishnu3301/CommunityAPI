@@ -30,7 +30,7 @@ const getMyposts= async (req,res)=>{
             $limit:parseInt(postsPerPage)
         },
         {
-            $project:{_id:0,title:1,description:1}
+            $project:{_id:0,title:1,description:1,files:1}
         }
     ]).toArray();
     return res.status(200).json(posts);
@@ -121,7 +121,6 @@ const getTimeline = async (req,res)=>{
     })
     //the timeline posts are not sorted but are the most recent in random order
     const timelinePosts=[...followersPosts,...groupPosts]
-    console.log(timelinePosts)
     return res.status(200).json(timelinePosts)
 
 }
@@ -488,6 +487,9 @@ const replyComment= async (req,res)=>{
     const firebaseuserid=req.firebaseuserid
     const commentId=new ObjectId(req.params.commentid);
     const text=req.body.text
+    if(!text){
+        throw new ExpressError("Comment can't be empty string",400)
+    }
     let newDocument={
         postid:postId,
         commentatorid:firebaseuserid,

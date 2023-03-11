@@ -29,7 +29,7 @@ const signup = async (req,res)=>{
     if(validatedData.success){
         const {name="",gender="",profession="",mobile="",location=""}=req.body;
         let {email,username,password}=req.body
-        const foundUserbyUsername= await _db.collection('userInfo').findOne({username:username});
+        const foundUserbyUsername= await _db.collection('userInfo').findOne({username:"vishnur"});
         if(foundUserbyUsername){
             throw new ExpressError("Username is already taken",400)
         }

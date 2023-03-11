@@ -19,7 +19,6 @@ const isGroupAdmin = async (req,res,next)=>{
         }
     }
     catch(error){
-        console.log(error);
         return res.status(501).json({message:"server side error"})
     }
 }
