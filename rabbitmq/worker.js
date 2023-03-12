@@ -1,13 +1,11 @@
-//code refactoring is required in this file
-// aim - to write  dry code
-
 const amqp=require('amqplib')
 const path = require('path')
 require('dotenv').config({ path: path.resolve(__dirname, '../.env') })
-const {logger}=require('../utils/logger')
-const {getClient}=require('../db')
+let {transport,mailOptions}=require('../utils/mailerService')
+const {getClient}=require('../db');
 const client=getClient();
 const _db=client.db(process.env.DBNAME)
+const {logger}=require('../utils/logger')
 
 async function rewardTwoUsers(type,userid1,userid2,points){
     try{
@@ -21,7 +19,7 @@ async function rewardTwoUsers(type,userid1,userid2,points){
         },{
             upsert:true
         })
-        console.log(`Reward ${type}ed to both users`)
+        // console.log(`Reward ${type}ed to both users`)
         const user1Doc=await _db.collection('userInfo').findOne({userid:userid1})
         const user2Doc=await _db.collection('userInfo').findOne({userid:userid2})
         const username1=user1Doc.username,username2=user2Doc.username
@@ -39,7 +37,7 @@ async function rewardOneUser(type,userid1,points){
         },{
             upsert:true
         })
-        console.log(`Reward ${type}ed to the user`)
+        // console.log(`Reward ${type}ed to the user`)
         const user1Doc=await _db.collection('userInfo').findOne({userid:userid1})
         const username1=user1Doc.username
         logger.info(`Reward of type - ${type} and points - ${points} is processed for one user`,{users:[username1]})
@@ -48,9 +46,54 @@ async function rewardOneUser(type,userid1,points){
         return error
     }
 }
+
+
 async function consumeMessages(){
     const connection=await amqp.connect(process.env.AMQPURL)
     const channel=await connection.createChannel()
+    //bulk mailing worker
+    await channel.assertQueue(process.env.BULKMAILINGQUEUE,{durable:true});
+    channel.consume(process.env.BULKMAILINGQUEUE, async (msg)=>{
+        const data=JSON.parse(msg.content);
+        const {creatorid:firebaseuserid}=data
+        //get the  emails of all the followers of this post creator
+        const followers= await _db.collection('follows').aggregate([
+            {
+                $match:{followedid:firebaseuserid}
+            },
+            {
+                $project:{_id:0,followeremail:1}
+            }
+        ]).toArray()
+        if(followers.length!=0){
+            const toEmails= followers.map(obj=>{
+                return obj.followeremail
+            })
+            const userObject=await _db.collection('userInfo').findOne({userid:firebaseuserid})
+            const username=userObject.username
+            let text=`${username} just created a post`
+            mailOptions={...mailOptions,text}
+            toEmails.forEach(async (mail)=>{
+                let useCaseMailOptions={...mailOptions,to:mail}
+                await transport.sendMail(useCaseMailOptions)
+            })
+        }
+        channel.ack(msg)
+    },{noAck:false})
+
+    //mailworker
+
+    await channel.assertQueue(process.env.MAILINGQUEUE,{durable:true});
+    channel.consume(process.env.MAILINGQUEUE,async (msg)=>{
+        const data=JSON.parse(msg.content);
+        const {receiver:to,body:text}=data
+        mailOptions={...mailOptions,to,text}
+        await transport.sendMail(mailOptions)
+        channel.ack(msg)
+    },{noAck:false})
+
+    //reward worker
+
     await channel.assertQueue(process.env.REWARDQUEUE,{durable:true});
     channel.consume(process.env.REWARDQUEUE,async (msg)=>{
         const data=JSON.parse(msg.content);
@@ -76,6 +119,8 @@ async function consumeMessages(){
 
         }
     },{noAck:false})
+
+
 }
 
-consumeMessages()
+module.exports={consumeMessages}

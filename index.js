@@ -6,6 +6,7 @@ const {authRouter}=require('./routers/authRoutes');
 const { groupRouter } = require('./routers/groupRoutes');
 const {postRouter}=require('./routers/postRoutes')
 const {userRouter}=require('./routers/userRoutes');
+const {consumeMessages}=require('./rabbitmq/worker')
 const app=express();
 const PORT=process.env.PORT || 3000
 
@@ -48,6 +49,7 @@ app.all('*',(req,res)=>{
 app.listen(PORT,()=>{
     //db connection
     connectTodb()
+    consumeMessages()
 })
 
 module.exports=app
