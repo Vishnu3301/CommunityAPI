@@ -4,7 +4,7 @@ const client=getClient();
 const _db=client.db(process.env.DBNAME)
 
 const isMember = async (req,res,next)=>{
-    const firebaseuserid=req.firebaseuserid;
+    const firebaseuserid=req.session.user.firebaseuserid;
     const groupid=ObjectId(req.params.id);
     try{
         const memberObject=await  _db.collection('groupmembers').findOne({

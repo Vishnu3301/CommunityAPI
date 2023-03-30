@@ -9,7 +9,7 @@ const {ExpressError}=require('../utils/customErrorHandler')
 const {mybucket}=require('../utils/gcp')
 
 const createGroup = async (req,res)=>{
-        const firebaseuserid=req.firebaseuserid
+        const firebaseuserid=req.session.user.firebaseuserid
         const {name,bio}=req.body;
         if( name && bio){
             //create  a document with group details
@@ -52,7 +52,7 @@ const getAllGroups = async (req,res)=>{
 
 const deleteGroup = async (req,res)=>{
     //to be implemeneted completely
-        const firebaseuserid=req.firebaseuserid
+        const firebaseuserid=req.session.user.firebaseuserid
         const groupid=ObjectId(req.params.id)
         //this become hectic we have to delete
         // 1. all the posts in the group
@@ -93,7 +93,7 @@ const fetchStats = async (req,res)=>{
 }
 
 const createPost = async (req,res)=>{
-        const firebaseuserid=req.firebaseuserid
+        const firebaseuserid=req.session.user.firebaseuserid
         const groupid=ObjectId(req.params.id)
         const {title,description}=req.body;
         if(title && description){
@@ -125,7 +125,7 @@ const createPost = async (req,res)=>{
 
 const joinGroup = async (req,res)=>{
         const groupid=ObjectId(req.params.id);
-        const firebaseuserid=req.firebaseuserid
+        const firebaseuserid=req.session.user.firebaseuserid
         const alreadyMember= await _db.collection('groupmembers').findOne({memberid:firebaseuserid,groupid:groupid});
         if(alreadyMember){
             throw new ExpressError("You are already a member",409)
@@ -144,7 +144,7 @@ const joinGroup = async (req,res)=>{
 }
 
 const leaveGroup = async (req,res)=>{
-        const firebaseuserid=req.firebaseuserid
+        const firebaseuserid=req.session.user.firebaseuserid
         const groupid=ObjectId(req.params.id);
         const isMember=await _db.collection('groupmembers').findOne({
             memberid:firebaseuserid,

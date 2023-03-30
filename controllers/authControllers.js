@@ -1,4 +1,5 @@
-const jwt=require('jsonwebtoken'); //jwt for api security
+// const jwt=require('jsonwebtoken'); //jwt for api security
+const session=require('express-session')
 const path=require('path')
 require('dotenv').config({path:path.resolve(__dirname+'../.env')})
 const key=process.env.SECRETKEY //secret key to sign the payload for jwt 
@@ -53,8 +54,11 @@ const signup = async (req,res)=>{
         }
         //store user profile in mongodb
         await _db.collection('userInfo').insertOne(userDetails);
-        const token=jwt.sign({firebaseuserid:userId,email:email},key);
-        return res.status(200).json({message:"SignedUp successfully",token});
+        // const token=jwt.sign({firebaseuserid:userId,email:email},key);
+        const user={firebaseuserid:userId,email:email}
+        req.session.user=user
+        console.log(req.session)
+        return res.status(200).json({message:"SignedUp successfully"});
     }
     else{
         //zod validation falied
@@ -74,8 +78,10 @@ const login = async (req,res)=>{
             const {email,password}=req.body
             const userInfo=await signInWithEmailAndPassword(auth,email,password);
             const userId=userInfo.user.uid
-            const token= jwt.sign({firebaseuserid:userId,email:email},key)
-            return res.status(200).send({message:"signed in succesfully",token:token})
+            // const token= jwt.sign({firebaseuserid:userId,email:email},key)
+            const user={firebaseuserid:userId,email:email}
+            req.session.user=user
+            return res.status(200).send({message:"signed in succesfully"})
     }
     else{
         //zod validation errors
@@ -99,6 +105,19 @@ const resetPassword= async (req,res)=>{
     }
 }
 
+const logout= async (req,res)=>{
+    if(req.session.user){
+        req.session.destroy(err=>{
+            if(err){
+                return res.json({"message":"Logout Failed"})
+
+            }
+            res.clearCookie(process.env.COOKIE_NAME)
+            return res.json({"message":"Logged out Succesfully"})
+        })
+    }
+}
+
 module.exports={
-    signup,login,resetPassword
+    signup,login,resetPassword,logout
 }

@@ -4,7 +4,7 @@ const client=getClient();
 const _db=client.db(process.env.DBNAME);
 const isCreator=async (req,res,next)=>{
     const postId=new ObjectId(req.params.id); //get the post id passed in parameters
-    const firebaseuserid=req.firebaseuserid
+    const firebaseuserid=req.session.user.firebaseuserid
     try{
         let postObject=await _db.collection('posts').findOne({_id:postId}) //find the post document
         if(!postObject){

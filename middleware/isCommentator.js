@@ -4,7 +4,7 @@ const client=getClient();
 const _db=client.db(process.env.DBNAME);
 const isCommentator=async (req,res,next)=>{
     const commentId=new ObjectId(req.params.commentid)
-    const firebaseuserid=req.firebaseuserid 
+    const firebaseuserid=req.session.user.firebaseuserid 
     try{
         const commentObject=await _db.collection('comments').findOne({_id:commentId}) //find the post document
         if(!commentObject){

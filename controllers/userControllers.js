@@ -28,7 +28,7 @@ const followUser = async (req,res)=>{
     const userInfo= await _db.collection('userInfo').findOne({username:username});
     if(userInfo){
         const guestUserId= userInfo.userid;
-        const followerid=req.firebaseuserid
+        const followerid=req.session.user.firebaseuserid
         if(guestUserId===followerid){
             throw new ExpressError("You cannot follow yourself",409)
         }
@@ -39,7 +39,7 @@ const followUser = async (req,res)=>{
             }
             else{
                 const followerObject=await _db.collection('userInfo').findOne({userid:followerid});
-                const followerEmail=req.email;
+                const followerEmail=req.session.user.email;
                 await _db.collection('follows').insertOne({
                     followerid:followerid, //this user requested to follow the below user
                     followedid:guestUserId, //this user gains a follower
@@ -73,7 +73,7 @@ const unfollowUser = async (req,res)=>{
         const userInfo= await _db.collection('userInfo').findOne({username:username});
         if(userInfo){
             const guestUserId= userInfo.userid;
-            const followerid= req.firebaseuserid;
+            const followerid= req.session.user.firebaseuserid;
             const notFollowing = await _db.collection('follows').findOne({followerid:followerid,followedid:guestUserId});
             if(!notFollowing){
                 throw new ExpressError("You are already not following this user",409)
@@ -105,7 +105,7 @@ const unfollowUser = async (req,res)=>{
 }
 
 const updateUser= async (req,res)=>{
-    const firebaseuserid=req.firebaseuserid
+    const firebaseuserid=req.session.user.firebaseuserid
     let updatedFields={...req.body,updatedAt:new Date()};
     
     if(updatedFields.username){
@@ -120,7 +120,7 @@ const updateUser= async (req,res)=>{
     await _db.collection('userInfo').updateOne({userid:firebaseuserid},{
         $set: updatedFields
     })
-    const userEmail=req.email;
+    const userEmail=req.session.user.email;
     const data={
         receiver:userEmail,
         body:"Your Profile  has been updated"
@@ -167,7 +167,7 @@ const getStats= async (req,res)=>{
 }
 
 const myDetails = async (req,res)=>{
-    const firebaseuserid = req.firebaseuserid
+    const firebaseuserid = req.session.user.firebaseuserid
     const myInfo=await _db.collection('userInfo').findOne({userid:firebaseuserid});
     const {_id,userid,...safeInfo}=myInfo;
     return res.status(200).json(safeInfo);
@@ -215,11 +215,11 @@ const updateDisplayPicture = async (req,res)=>{
         displaypic:publicURL,
         updatedAt:new Date()
     }
-    const firebaseuserid=req.firebaseuserid
+    const firebaseuserid=req.session.user.firebaseuserid
     await _db.collection('userInfo').updateOne({userid:firebaseuserid},{
         $set:updatedFields
     });
-    const userEmail=req.email
+    const userEmail=req.session.user.email
     const data={
         receiver:userEmail,
         body:"Your Display Picture has been updated"
@@ -242,11 +242,11 @@ const updateBackgroundPicture = async (req,res)=>{
         backgroundpic:publicURL,
         updatedAt:new Date()
     }
-    const firebaseuserid=req.firebaseuserid
+    const firebaseuserid=req.session.user.firebaseuserid
     await _db.collection('userInfo').updateOne({userid:firebaseuserid},{
         $set:updatedFields
     });
-    const userEmail=req.email
+    const userEmail=req.session.user.email
     const data={
         receiver:userEmail,
         body:"Your Background Picture has been updated"

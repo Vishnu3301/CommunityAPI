@@ -7,11 +7,29 @@ const { groupRouter } = require('./routers/groupRoutes');
 const {postRouter}=require('./routers/postRoutes')
 const {userRouter}=require('./routers/userRoutes');
 const {consumeMessages}=require('./rabbitmq/worker')
+//code for session starts
+const session=require('express-session')
+const redis=require('redis')
+const redisStore=require('connect-redis').default
+const redisClient=redis.createClient()
+
 const app=express();
 const PORT=process.env.PORT || 3000
 
 
 //middleware
+app.use(session({
+    name:process.env.COOKIE_NAME,
+    store:new redisStore({client:redisClient}),
+    secret:process.env.COOKIE_SECRET,
+    resave:false,
+    saveUninitialized:false,
+    cookie:{
+        secure:false,
+        httpOnly:false,
+        maxAge:1000*60*10
+    }
+}))
 app.use(express.json())
 app.use('/api/auth',authRouter);
 app.use('/api/posts',postRouter);
@@ -37,6 +55,7 @@ app.use((err,req,res,next)=>{
     if(err instanceof FirebaseError){
         message=err.code.slice(5)
     }
+    console.log(err)
     return res.status(status).json({message})
 })
 
@@ -45,11 +64,26 @@ app.all('*',(req,res)=>{
     res.status(404).json({message:'Invalid Endpoint'})
 })
 
-//start the express app
-app.listen(PORT,()=>{
-    //db connection
-    connectTodb()
-    consumeMessages()
-})
+async function connectToRedis(){
+    await redisClient.connect()
+}
 
+connectTodb()
+.then(()=>{
+    console.log("Connected to mongodb")
+    connectToRedis()
+    .then(()=>{
+        console.log("Connected to redis")
+        consumeMessages()
+        .then(()=>{
+            console.log("Started workers");
+            app.listen(PORT,()=>{
+                console.log("listening on port")
+            })
+        })
+        .catch(err=>{
+            console.log(err)
+        })
+    })
+})
 module.exports=app

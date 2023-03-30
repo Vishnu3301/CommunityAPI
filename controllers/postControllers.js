@@ -12,7 +12,7 @@ const bulkMailQueue=process.env.BULKMAILINGQUEUE;
 const {ExpressError}=require('../utils/customErrorHandler')
 const {mybucket}=require('../utils/gcp')
 const getMyposts= async (req,res)=>{
-    const firebaseuserid=req.firebaseuserid;
+    const firebaseuserid=req.session.user.firebaseuserid;
     const {page=1,limit:postsPerPage=5} = req.query
     if(page<=0 || postsPerPage<=0){
         throw new ExpressError("Page and Limit queries must be greater than 0",400)
@@ -41,7 +41,7 @@ const getTimeline = async (req,res)=>{
     //to be implemented
     //for timeline, fetch posts made by followers and the posts from groups they are in
     //make posts 
-    const firebaseuserid=req.firebaseuserid;
+    const firebaseuserid=req.session.user.firebaseuserid;
     //we need to apply two lookups
     //one for the posts of the users the user if following and one for groups
     //the limit per page would be 10 posts lets generate a random number between one to 10
@@ -128,7 +128,7 @@ const getTimeline = async (req,res)=>{
 //default post visibility is true, that is posts are public, if the user sets visibility to false,
 // it won't get displayed or retrived
 const createPost = async (req,res)=>{
-    const firebaseuserid=req.firebaseuserid;
+    const firebaseuserid=req.session.user.firebaseuserid;
     const {title,description}=req.body;
     //default visibility of the post will be set to true
     let visible=true;
@@ -197,7 +197,7 @@ const createPost = async (req,res)=>{
 const updatePost = async (req,res)=>{
     const postId=new ObjectId(req.params.id);
     let updatedFields=req.body;
-    updatedFields={...updatedFields,updatedAt:new Date(),updaterid:req.firebaseuserid} //for now only the post creator can update the post
+    updatedFields={...updatedFields,updatedAt:new Date(),updaterid:req.session.user.firebaseuserid} //for now only the post creator can update the post
     const updatedPost= await _db.collection('posts').findOneAndUpdate({_id:postId},{
         $set: updatedFields
     },{returnDocument:'after'});
@@ -213,7 +213,7 @@ const deletePost = async (req,res)=>{
     await _db.collection('comments').deleteMany({postid:postId}) //delete the comments associated with the post
     await _db.collection('commentlikes').deleteMany({postid:postId}) //delete the comment likes stored in different collection
     //when user deletes the post the credits regarding the post is only deleted
-    const firebaseuserid=req.firebaseuserid
+    const firebaseuserid=req.session.user.firebaseuserid
     const type='debit',points=3,userid1=firebaseuserid
     if(postObject.ingroup){
         points=5;
@@ -251,7 +251,7 @@ const makeInvisible = async (req,res)=>{
 
 const likePost = async (req,res)=>{
     const postId=new ObjectId(req.params.id);
-    const firebaseuserid =req.firebaseuserid
+    const firebaseuserid =req.session.user.firebaseuserid
         const alreadyLiked=await _db.collection('postlikes').findOne({postid:postId,likerid:firebaseuserid});
         if(alreadyLiked){
             throw new ExpressError("You already liked the post",409)
@@ -287,7 +287,7 @@ const likePost = async (req,res)=>{
 
 const unlikePost= async (req,res)=>{
     const postId=new ObjectId(req.params.id);
-    const firebaseuserid =req.firebaseuserid
+    const firebaseuserid =req.session.user.firebaseuserid
     const liked=await _db.collection('postlikes').findOne({postid:postId,likerid:firebaseuserid});
     if(liked){
         await _db.collection('postlikes').deleteOne({
@@ -364,7 +364,7 @@ const getReplies = async (req,res)=>{
 }
 
 const addComment = async (req,res)=>{
-    const firebaseuserid=req.firebaseuserid
+    const firebaseuserid=req.session.user.firebaseuserid
     const postId=new ObjectId(req.params.id);
     const text=req.body.text
     if(!text){
@@ -417,7 +417,7 @@ const addComment = async (req,res)=>{
 const updateComment= async (req,res)=>{
     const postId=new ObjectId(req.params.id);
     const commentid=new ObjectId(req.params.commentid)
-    let updatedComment={...req.body,updatedAt:new Date(),updaterid:req.firebaseuserid};
+    let updatedComment={...req.body,updatedAt:new Date(),updaterid:req.session.user.firebaseuserid};
     await _db.collection('comments').updateOne({_id:commentid,postid:postId},{
         $set:updatedComment
     });
@@ -427,7 +427,7 @@ const updateComment= async (req,res)=>{
 const deleteComment=async (req,res)=>{
     const postId=new ObjectId(req.params.id);
     const commentId=new ObjectId(req.params.commentid);
-    const commentatorId=req.firebaseuserid //becasue the execution only gets to this function if the user requesting deletion of comment is the commentator
+    const commentatorId=req.session.user.firebaseuserid //becasue the execution only gets to this function if the user requesting deletion of comment is the commentator
     const commentObject= await _db.collection('comments').findOne({_id:commentId});
     const postCreatorId=commentObject.creatorid;
     await _db.collection('comments').deleteOne({_id:commentId,postid:postId});
@@ -443,7 +443,7 @@ const deleteComment=async (req,res)=>{
 
 const likeComment=async (req,res)=>{
     const postId=new ObjectId(req.params.id);
-    const firebaseuserid=req.firebaseuserid
+    const firebaseuserid=req.session.user.firebaseuserid
     const commentId=new ObjectId(req.params.commentid);
     const alreadyLiked=await client.db("Communityapi").collection('commentlikes').findOne({commentid:commentId,likerid:firebaseuserid});
     if(alreadyLiked){
@@ -467,7 +467,7 @@ const likeComment=async (req,res)=>{
 }
 
 const unlikeComment= async (req,res)=>{
-    const firebaseuserid=req.firebaseuserid
+    const firebaseuserid=req.session.user.firebaseuserid
     const commentId=new ObjectId(req.params.commentid);
     const notLiked=await client.db("Communityapi").collection('commentlikes').findOne({commentid:commentId,likerid:firebaseuserid});
     if(!notLiked){
@@ -484,7 +484,7 @@ const unlikeComment= async (req,res)=>{
 
 const replyComment= async (req,res)=>{
     const postId=new ObjectId(req.params.id);
-    const firebaseuserid=req.firebaseuserid
+    const firebaseuserid=req.session.user.firebaseuserid
     const commentId=new ObjectId(req.params.commentid);
     const text=req.body.text
     if(!text){
